@@ -1,0 +1,45 @@
+body {
+    font-family: var(--font-manrope);
+}
+
+.container {
+    max-width: 1440px;
+    width: 100%;
+}
+
+button {
+    transition: 100ms;
+    cursor: pointer;
+
+    &:disabled {
+        cursor: default;
+    }
+}
+
+a {
+    transition: 100ms;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-figtree);
+    font-weight: 800;
+    margin: 0;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100dvh;
+    padding-top: 32px;
+}
+
+::selection {
+    background: var(--primary);
+    color: white;
+}

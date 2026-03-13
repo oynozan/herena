@@ -1,0 +1,26 @@
+header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    border-bottom: 1px solid var(--border);
+
+    .container {
+        display: flex;
+        align-items: center;
+        gap: 36px;
+        padding: 0 24px;
+        height: 70px;
+
+        a {
+            font-family: var(--font-manrope);
+            color: var(--second-foreground);
+            font-weight: 500;
+
+            &:hover {
+                color: var(--primary);
+            }
+        }
+    }
+}

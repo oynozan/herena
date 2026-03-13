@@ -1,0 +1,258 @@
+"use client";
+
+import { useState } from "react";
+import { toast } from "sonner";
+import Image from "next/image";
+import { ArrowDown, ChevronDown } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type TokenKey = "HBAR" | "RN";
+
+const tokenList: { key: TokenKey; name: string; logo: string; balance: number; usd: number }[] = [
+    { key: "HBAR", name: "HBAR", logo: "/hbar.svg", balance: 0.00007, usd: 0.28 },
+    { key: "RN", name: "RN", logo: "/logo.png", balance: 0, usd: 0.0112 },
+];
+
+const tokenMap = Object.fromEntries(tokenList.map(t => [t.key, t])) as Record<
+    TokenKey,
+    (typeof tokenList)[number]
+>;
+
+export default function SwapPage() {
+    const [fromAmount, setFromAmount] = useState("");
+    const [sellToken, setSellToken] = useState<TokenKey>("HBAR");
+    const [buyToken, setBuyToken] = useState<TokenKey>("RN");
+
+    const rate = 25;
+    const fee = 0.3;
+
+    const from = tokenMap[sellToken];
+    const to = tokenMap[buyToken];
+
+    const inputAmount = Number(fromAmount) || 0;
+    const outputAmount = sellToken === "HBAR" ? inputAmount * rate : inputAmount / rate;
+    const feeAmount = outputAmount * (fee / 100);
+    const receivedAmount = outputAmount - feeAmount;
+
+    const fromUsd = inputAmount * from.usd;
+    const toUsd = receivedAmount * to.usd;
+
+    const flipDirection = () => {
+        setSellToken(buyToken);
+        setBuyToken(sellToken);
+        setFromAmount("");
+    };
+
+    const selectSellToken = (key: TokenKey) => {
+        if (key === buyToken) {
+            setBuyToken(sellToken);
+        }
+        setSellToken(key);
+        setFromAmount("");
+    };
+
+    const selectBuyToken = (key: TokenKey) => {
+        if (key === sellToken) {
+            setSellToken(buyToken);
+        }
+        setBuyToken(key);
+        setFromAmount("");
+    };
+
+    return (
+        <div className="w-full flex flex-col items-center gap-3">
+            <div className="w-full flex items-end justify-center mt-16">
+                <div className="flex flex-col items-center">
+                    <h2 className="text-5xl">
+                        Swap <span className="text-primary">RN</span> token{" "}
+                        <span className="text-secondary">right now</span>
+                    </h2>
+                </div>
+            </div>
+
+            <div className="w-full flex gap-6 mt-8">
+                <div className="flex-1 flex justify-center">
+                    <div className="w-full max-w-[480px] flex flex-col gap-1 relative">
+                        {/* Sell panel */}
+                        <div className="border border-border bg-card dark:bg-[oklch(0.18_0_0)] rounded-2xl p-4 pb-6">
+                            <p className="text-sm text-muted-foreground mb-2">Sell</p>
+                            <div className="flex items-center justify-between gap-2">
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="0"
+                                    value={fromAmount}
+                                    onChange={e => {
+                                        const v = e.target.value;
+                                        if (/^[0-9]*\.?[0-9]*$/.test(v)) setFromAmount(v);
+                                    }}
+                                    className="bg-transparent text-4xl font-medium outline-none w-full min-w-0 placeholder:text-muted-foreground/40"
+                                />
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="flex items-center gap-2 bg-background dark:bg-[oklch(0.25_0_0)] hover:bg-accent dark:hover:bg-[oklch(0.3_0_0)] transition-colors rounded-full pl-2 pr-3 py-1.5 shrink-0 border border-border cursor-pointer">
+                                            <Image
+                                                src={from.logo}
+                                                alt={from.name}
+                                                width={28}
+                                                height={28}
+                                                className="rounded-full"
+                                            />
+                                            <span className="font-semibold text-lg">
+                                                {from.name}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-44">
+                                        {tokenList.map(token => (
+                                            <DropdownMenuItem
+                                                key={token.key}
+                                                className="cursor-pointer flex items-center gap-2 py-2"
+                                                onClick={() => selectSellToken(token.key)}
+                                            >
+                                                <Image
+                                                    src={token.logo}
+                                                    alt={token.name}
+                                                    width={24}
+                                                    height={24}
+                                                    className="rounded-full"
+                                                />
+                                                <span className="font-medium">{token.name}</span>
+                                                {token.key === sellToken && (
+                                                    <span className="ml-auto text-primary text-xs">
+                                                        Selected
+                                                    </span>
+                                                )}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                                <span className="text-sm text-muted-foreground">
+                                    {inputAmount > 0 ? `$${fromUsd.toFixed(2)}` : ""}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                    {from.balance.toLocaleString()} {from.name}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Swap direction button */}
+                        <div className="flex items-center justify-center -mt-6 -mb-5 z-10">
+                            <button
+                                onClick={flipDirection}
+                                className="bg-card dark:bg-[oklch(0.18_0_0)] border-4 border-background dark:border-[oklch(0.14_0_0)] rounded-xl p-2 hover:bg-accent dark:hover:bg-[oklch(0.22_0_0)] transition-colors cursor-pointer"
+                            >
+                                <ArrowDown className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Buy panel */}
+                        <div className="border border-border bg-card dark:bg-[oklch(0.18_0_0)] rounded-2xl p-4 pt-6">
+                            <p className="text-sm text-muted-foreground mb-2">Buy</p>
+                            <div className="flex items-center justify-between gap-2">
+                                <span
+                                    className={`text-4xl font-medium min-w-0 ${
+                                        receivedAmount > 0 ? "" : "text-muted-foreground/40"
+                                    }`}
+                                >
+                                    {receivedAmount > 0 ? receivedAmount.toFixed(4) : "0"}
+                                </span>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="flex items-center gap-2 bg-background dark:bg-[oklch(0.25_0_0)] hover:bg-accent dark:hover:bg-[oklch(0.3_0_0)] transition-colors rounded-full pl-2 pr-3 py-1.5 shrink-0 border border-border cursor-pointer">
+                                            <Image
+                                                src={to.logo}
+                                                alt={to.name}
+                                                width={28}
+                                                height={28}
+                                                className="rounded-full"
+                                            />
+                                            <span className="font-semibold text-lg">{to.name}</span>
+                                            <ChevronDown className="h-4 w-4 opacity-80" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-44">
+                                        {tokenList.map(token => (
+                                            <DropdownMenuItem
+                                                key={token.key}
+                                                className="cursor-pointer flex items-center gap-2 py-2"
+                                                onClick={() => selectBuyToken(token.key)}
+                                            >
+                                                <Image
+                                                    src={token.logo}
+                                                    alt={token.name}
+                                                    width={24}
+                                                    height={24}
+                                                    className="rounded-full"
+                                                />
+                                                <span className="font-medium">{token.name}</span>
+                                                {token.key === buyToken && (
+                                                    <span className="ml-auto text-primary text-xs">
+                                                        Selected
+                                                    </span>
+                                                )}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                                <span className="text-sm text-muted-foreground">
+                                    {receivedAmount > 0 ? `$${toUsd.toFixed(2)}` : ""}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                    {to.balance.toLocaleString()} {to.name}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Action button */}
+                        <Button
+                            className="w-full h-14 text-lg font-semibold rounded-2xl mt-1"
+                            disabled={inputAmount <= 0}
+                            onClick={() =>
+                                toast.success(
+                                    `Swapped ${inputAmount} ${from.name} for ${receivedAmount.toFixed(4)} ${to.name}`,
+                                )
+                            }
+                        >
+                            {inputAmount <= 0 ? "Get started" : `Swap ${from.name} for ${to.name}`}
+                        </Button>
+
+                        {/* Fee details */}
+                        {inputAmount > 0 && (
+                            <div className="text-sm text-muted-foreground space-y-1 px-2 pt-2">
+                                <div className="flex justify-between">
+                                    <span>Rate</span>
+                                    <span>1 HBAR = {rate} RN</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Fee ({fee}%)</span>
+                                    <span>
+                                        {feeAmount.toFixed(4)} {to.name}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between font-medium text-foreground">
+                                    <span>You receive</span>
+                                    <span>
+                                        {receivedAmount.toFixed(4)} {to.name}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

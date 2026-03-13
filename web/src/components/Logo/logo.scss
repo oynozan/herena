@@ -1,0 +1,9 @@
+.brand-logo {
+    color: var(--primary);
+    font-family: var(--font-figtree);
+    letter-spacing: -0.02em;
+}
+
+html.dark .brand-logo {
+    color: var(--lprimary);
+}

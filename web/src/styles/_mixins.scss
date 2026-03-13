@@ -1,0 +1,42 @@
+@mixin dc {
+    display: flex;
+    align-items: center;
+}
+
+@mixin dcc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin W($breakpoint) {
+    @media only screen and (max-width: $breakpoint) {
+        @content;
+    }
+}
+
+@mixin H($breakpoint) {
+    @media only screen and (max-height: $breakpoint) {
+        @content;
+    }
+}
+
+@mixin W_H($w, $h) {
+    @media only screen and (max-width: $w) and (max-height: $h) {
+        @content;
+    }
+}
+
+@mixin light($shadows...) {
+    box-shadow: $shadows;
+    border-radius: 50%;
+    width: 0;
+    height: 0;
+}
+
+@mixin nodrag {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
