@@ -1,19 +1,39 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 import ProposalWrapper from "./ProposalWrapper";
 import Pagination from "@/components/Table/Pagination";
-import { mockProposals } from "@/lib/mock-data";
+import { fetchProposals } from "@/lib/api";
+import type { Proposal } from "@/lib/types";
 
 const PER_PAGE = 5;
 
 export default function GovernanceTable() {
     const [activePage, setActivePage] = useState(1);
     const [pastPage, setPastPage] = useState(1);
+    const [activeProposals, setActiveProposals] = useState<Proposal[]>([]);
+    const [pastProposals, setPastProposals] = useState<Proposal[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const activeProposals = useMemo(() => mockProposals.filter(p => p.status === "active"), []);
-    const pastProposals = useMemo(() => mockProposals.filter(p => p.status !== "active"), []);
+    useEffect(() => {
+        async function load() {
+            setLoading(true);
+            try {
+                const [activeRes, pastRes] = await Promise.all([
+                    fetchProposals({ status: "active", limit: 100 }),
+                    fetchProposals({ limit: 100 }),
+                ]);
+                setActiveProposals(activeRes.proposals);
+                setPastProposals(pastRes.proposals.filter(p => p.status !== "active"));
+            } catch (err) {
+                console.error("Failed to fetch proposals:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        load();
+    }, []);
 
     const activeTotalPages = Math.max(1, Math.ceil(activeProposals.length / PER_PAGE));
     const activeCurrentPage = Math.min(activePage, activeTotalPages);
@@ -28,6 +48,10 @@ export default function GovernanceTable() {
         (pastCurrentPage - 1) * PER_PAGE,
         pastCurrentPage * PER_PAGE,
     );
+
+    if (loading) {
+        return <p className="text-second-foreground text-center text-sm py-8">Loading proposals...</p>;
+    }
 
     return (
         <div className="w-full flex flex-col gap-4">

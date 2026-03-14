@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { ArrowDown, ChevronDown } from "lucide-react";
+import { useWallets } from "@privy-io/react-auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,32 +13,58 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { fetchPoolInfo } from "@/lib/api";
+import { executeSwap } from "@/lib/hedera";
 
 type TokenKey = "HBAR" | "RN";
 
-const tokenList: { key: TokenKey; name: string; logo: string; balance: number; usd: number }[] = [
-    { key: "HBAR", name: "HBAR", logo: "/hbar.svg", balance: 0.00007, usd: 0.28 },
-    { key: "RN", name: "RN", logo: "/logo.png", balance: 0, usd: 0.0112 },
-];
-
-const tokenMap = Object.fromEntries(tokenList.map(t => [t.key, t])) as Record<
-    TokenKey,
-    (typeof tokenList)[number]
->;
+interface TokenInfo {
+    key: TokenKey;
+    name: string;
+    logo: string;
+    balance: number;
+    usd: number;
+}
 
 export default function SwapPage() {
+    const { wallets } = useWallets();
     const [fromAmount, setFromAmount] = useState("");
     const [sellToken, setSellToken] = useState<TokenKey>("HBAR");
     const [buyToken, setBuyToken] = useState<TokenKey>("RN");
+    const [rate, setRate] = useState(0);
+    const [fee, setFee] = useState(0.3);
+    const [loading, setLoading] = useState(true);
+    const [swapping, setSwapping] = useState(false);
 
-    const rate = 25;
-    const fee = 0.3;
+    const [tokenList] = useState<TokenInfo[]>([
+        { key: "HBAR", name: "HBAR", logo: "/hbar.svg", balance: 0, usd: 0.28 },
+        { key: "RN", name: "RN", logo: "/logo.png", balance: 0, usd: 0.0112 },
+    ]);
+
+    useEffect(() => {
+        async function load() {
+            try {
+                const pool = await fetchPoolInfo();
+                if (pool.rate > 0) setRate(pool.rate);
+                if (pool.fee > 0) setFee(pool.fee);
+            } catch (err) {
+                console.error("Failed to fetch pool info:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        load();
+    }, []);
+
+    const tokenMap = Object.fromEntries(tokenList.map(t => [t.key, t])) as Record<TokenKey, TokenInfo>;
 
     const from = tokenMap[sellToken];
     const to = tokenMap[buyToken];
 
     const inputAmount = Number(fromAmount) || 0;
-    const outputAmount = sellToken === "HBAR" ? inputAmount * rate : inputAmount / rate;
+    const outputAmount = rate > 0
+        ? (sellToken === "HBAR" ? inputAmount * rate : inputAmount / rate)
+        : 0;
     const feeAmount = outputAmount * (fee / 100);
     const receivedAmount = outputAmount - feeAmount;
 
@@ -64,6 +91,32 @@ export default function SwapPage() {
         }
         setBuyToken(key);
         setFromAmount("");
+    };
+
+    const handleSwap = async () => {
+        const wallet = wallets[0];
+        if (!wallet) {
+            toast.error("Please connect your wallet first");
+            return;
+        }
+        setSwapping(true);
+        try {
+            const provider = await wallet.getEthereumProvider();
+            await executeSwap(provider, {
+                fromToken: sellToken,
+                toToken: buyToken,
+                amount: inputAmount,
+                slippage: 1,
+            });
+            toast.success(
+                `Swapped ${inputAmount} ${from.name} for ${receivedAmount.toFixed(4)} ${to.name}`,
+            );
+            setFromAmount("");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Swap failed");
+        } finally {
+            setSwapping(false);
+        }
     };
 
     return (
@@ -219,22 +272,24 @@ export default function SwapPage() {
                         {/* Action button */}
                         <Button
                             className="w-full h-14 text-lg font-semibold rounded-2xl mt-1"
-                            disabled={inputAmount <= 0}
-                            onClick={() =>
-                                toast.success(
-                                    `Swapped ${inputAmount} ${from.name} for ${receivedAmount.toFixed(4)} ${to.name}`,
-                                )
-                            }
+                            disabled={inputAmount <= 0 || rate === 0 || swapping}
+                            onClick={handleSwap}
                         >
-                            {inputAmount <= 0 ? "Get started" : `Swap ${from.name} for ${to.name}`}
+                            {loading
+                                ? "Loading..."
+                                : swapping
+                                  ? "Swapping..."
+                                  : inputAmount <= 0
+                                    ? "Get started"
+                                    : `Swap ${from.name} for ${to.name}`}
                         </Button>
 
                         {/* Fee details */}
-                        {inputAmount > 0 && (
+                        {inputAmount > 0 && rate > 0 && (
                             <div className="text-sm text-muted-foreground space-y-1 px-2 pt-2">
                                 <div className="flex justify-between">
                                     <span>Rate</span>
-                                    <span>1 HBAR = {rate} RN</span>
+                                    <span>1 HBAR = {rate.toFixed(2)} RN</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Fee ({fee}%)</span>

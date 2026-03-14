@@ -2,15 +2,44 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useWallets } from "@privy-io/react-auth";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Proposal } from "@/lib/types";
+import { castVote } from "@/lib/hedera";
 
 export default function VotingPanel({ proposal }: { proposal: Proposal }) {
+    const { wallets } = useWallets();
     const [voteCredits, setVoteCredits] = useState("");
+    const [voting, setVoting] = useState(false);
     const credits = Number(voteCredits) || 0;
     const votePower = Math.floor(Math.sqrt(credits));
+
+    const handleVote = async (direction: "yes" | "no") => {
+        const wallet = wallets[0];
+        if (!wallet) {
+            toast.error("Please connect your wallet first");
+            return;
+        }
+        setVoting(true);
+        try {
+            const provider = await wallet.getEthereumProvider();
+            await castVote(provider, {
+                proposalId: proposal.id,
+                credits,
+                direction,
+            });
+            toast.success(
+                `Voted ${direction.toUpperCase()} with ${votePower} vote power (${credits} RN spent)`,
+            );
+            setVoteCredits("");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to cast vote");
+        } finally {
+            setVoting(false);
+        }
+    };
 
     return (
         <div className="border border-border rounded-xl bg-primary/3 h-full">
@@ -37,28 +66,18 @@ export default function VotingPanel({ proposal }: { proposal: Proposal }) {
                     <div className="flex gap-2 mt-4">
                         <Button
                             className="flex-1"
-                            disabled={proposal.status !== "active" || credits === 0}
-                            onClick={() => {
-                                toast.success(
-                                    `Voted YES with ${votePower} vote power (${credits} RN spent)`,
-                                );
-                                setVoteCredits("");
-                            }}
+                            disabled={proposal.status !== "active" || credits === 0 || voting}
+                            onClick={() => handleVote("yes")}
                         >
-                            Vote Yes
+                            {voting ? "Voting..." : "Vote Yes"}
                         </Button>
                         <Button
                             className="flex-1"
                             variant="destructive"
-                            disabled={proposal.status !== "active" || credits === 0}
-                            onClick={() => {
-                                toast.success(
-                                    `Voted NO with ${votePower} vote power (${credits} RN spent)`,
-                                );
-                                setVoteCredits("");
-                            }}
+                            disabled={proposal.status !== "active" || credits === 0 || voting}
+                            onClick={() => handleVote("no")}
                         >
-                            Vote No
+                            {voting ? "Voting..." : "Vote No"}
                         </Button>
                     </div>
                 </div>

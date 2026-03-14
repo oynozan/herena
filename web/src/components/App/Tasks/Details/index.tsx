@@ -1,15 +1,69 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Task } from "@/lib/types";
+import { joinTask } from "@/lib/api";
+import { submitTaskProof } from "@/lib/hedera";
 
 export default function TaskDetails({ task }: { task: Task }) {
+    const { user } = usePrivy();
+    const { wallets } = useWallets();
+    const [proofUrl, setProofUrl] = useState("");
+    const [joining, setJoining] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleJoin = async () => {
+        const wallet = user?.wallet?.address;
+        if (!wallet) {
+            toast.error("Please connect your wallet first");
+            return;
+        }
+        setJoining(true);
+        try {
+            await joinTask(task.id, wallet);
+            toast.success("You have joined this task!");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to join task");
+        } finally {
+            setJoining(false);
+        }
+    };
+
+    const handleSubmitProof = async () => {
+        if (!proofUrl) {
+            toast.error("Please enter a proof URL");
+            return;
+        }
+        const wallet = wallets[0];
+        if (!wallet) {
+            toast.error("Please connect your wallet first");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const provider = await wallet.getEthereumProvider();
+            await submitTaskProof(provider, {
+                taskId: task.id,
+                proofUrl,
+                proofType: task.proofType,
+            });
+            toast.success("Proof submitted for verification!");
+            setProofUrl("");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to submit proof");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <div className="flex gap-4 w-full">
-            <div className="w-2/3 flex flex-col gap-4 border border-border rounded-xl p-6 bg-primary/3">
+            <div className="w-2/3 flex flex-col gap-4 px-12 py-6">
                 <div>
                     <h3 className="text-lg font-semibold">Task Description</h3>
                     <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
@@ -52,9 +106,10 @@ export default function TaskDetails({ task }: { task: Task }) {
                         </p>
                         <Button
                             className="mt-4 w-full"
-                            onClick={() => toast.success("You have joined this task!")}
+                            onClick={handleJoin}
+                            disabled={joining}
                         >
-                            Join Task
+                            {joining ? "Joining..." : "Join Task"}
                         </Button>
                     </div>
                     <div className="flex flex-col px-4 py-0">
@@ -63,13 +118,16 @@ export default function TaskDetails({ task }: { task: Task }) {
                             className="mt-3 bg-background rounded-[4px]"
                             placeholder="Paste proof URL..."
                             type="url"
+                            value={proofUrl}
+                            onChange={e => setProofUrl(e.target.value)}
                         />
                         <Button
                             className="mt-2 w-full"
                             variant="secondary"
-                            onClick={() => toast.success("Proof submitted for verification!")}
+                            onClick={handleSubmitProof}
+                            disabled={submitting}
                         >
-                            Submit Proof
+                            {submitting ? "Submitting..." : "Submit Proof"}
                         </Button>
                     </div>
                     <div className="flex-1 flex flex-col border-t border-border p-4">

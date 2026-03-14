@@ -14,9 +14,6 @@ export default function GovernancePage() {
                         Review proposals and vote on task verifications using quadratic voting
                     </p>
                 </div>
-                <Button variant="secondary" disabled>
-                    Create Proposal
-                </Button>
             </div>
             <Suspense fallback={<TableLoading />}>
                 <GovernanceTable />

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 
-import { Button } from "@/components/ui/button";
 import TableLoading from "@/components/Table/Loading";
 import TasksTable from "@/components/App/Tasks/Table";
 
@@ -14,9 +13,6 @@ export default function TasksPage() {
                         Browse and join real-world sustainability actions verified on Hedera
                     </p>
                 </div>
-                <Button variant="secondary" disabled>
-                    Propose a Task
-                </Button>
             </div>
             <Suspense fallback={<TableLoading />}>
                 <TasksTable />

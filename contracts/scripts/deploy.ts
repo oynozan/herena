@@ -1,64 +1,96 @@
 import { writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { network } from "hardhat";
-import { parseEther } from "viem";
+import { artifacts, network } from "hardhat";
+import { type Address, type Hash, parseEther } from "viem";
+
+type DeploymentEntry = {
+  address: Address;
+  deployTxHash: Hash;
+};
 
 type DeploymentRecord = {
-  Herena: string;
-  StakingManager: string;
-  TaskManager: string;
-  ProofManager: string;
-  VotingManager: string;
-  SwapPool: string;
+  Herena: DeploymentEntry;
+  StakingManager: DeploymentEntry;
+  TaskManager: DeploymentEntry;
+  ProofManager: DeploymentEntry;
+  VotingManager: DeploymentEntry;
+  SwapPool: DeploymentEntry;
+  setupTxHashes: Hash[];
 };
 
 async function main() {
-  const { viem } = await network.connect();
+  const { viem } = await network.connect("hedera_testnet");
   const publicClient = await viem.getPublicClient();
   const [deployer] = await viem.getWalletClients();
+
+  const txLog: Hash[] = [];
+
+  async function deploy(contractName: string, args: unknown[] = []) {
+    const artifact = await artifacts.readArtifact(contractName);
+    const hash = await deployer.deployContract({
+      abi: artifact.abi,
+      bytecode: artifact.bytecode as `0x${string}`,
+      args,
+    });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    const addr = receipt.contractAddress!;
+    console.log(`[deploy] ${contractName} -> ${addr} (tx: ${hash})`);
+
+    const contract = await viem.getContractAt(contractName, addr);
+    return { contract, address: addr, hash };
+  }
+
+  async function logWrite(label: string, hashPromise: Promise<Hash>) {
+    const hash = await hashPromise;
+    await publicClient.waitForTransactionReceipt({ hash });
+    console.log(`[setup]  ${label} (tx: ${hash})`);
+    txLog.push(hash);
+    return hash;
+  }
 
   const initialMint = parseEther("1000000");
 
   // 1. Treasury
-  const treasury = await viem.deployContract("Treasury");
+  const treasury = await deploy("Treasury");
 
   // 2. Herena token
-  const herena = await viem.deployContract("Herena", [
-    treasury.address,
-    initialMint,
-  ]);
+  const herena = await deploy("Herena", [treasury.address, initialMint]);
 
   // 2.5 Set token address in treasury
-  await treasury.write.setToken([herena.address], {
-    account: deployer.account,
-  });
+  await logWrite(
+    "Treasury.setToken",
+    treasury.contract.write.setToken([herena.address], {
+      account: deployer.account,
+    }),
+  );
 
   // 3. StakingManager
-  const stakingManager = await viem.deployContract("StakingManager", [
+  const stakingManager = await deploy("StakingManager", [
     herena.address,
     parseEther("1"),
   ]);
 
   // 4. TaskManager
-  const taskManager = await viem.deployContract("TaskManager", [
+  const taskManager = await deploy("TaskManager", [
     herena.address,
     treasury.address,
   ]);
 
   // 4.5 Set taskManager in treasury
-  await treasury.write.setTaskManager([taskManager.address], {
-    account: deployer.account,
-  });
+  await logWrite(
+    "Treasury.setTaskManager",
+    treasury.contract.write.setTaskManager([taskManager.address], {
+      account: deployer.account,
+    }),
+  );
 
   // 5. ProofManager
-  const proofManager = await viem.deployContract("ProofManager", [
-    taskManager.address,
-  ]);
+  const proofManager = await deploy("ProofManager", [taskManager.address]);
 
   // 6. VotingManager
   const votingDuration = 48n * 60n * 60n;
-  const votingManager = await viem.deployContract("VotingManager", [
+  const votingManager = await deploy("VotingManager", [
     herena.address,
     stakingManager.address,
     taskManager.address,
@@ -67,23 +99,30 @@ async function main() {
   ]);
 
   // 7. SwapPool
-  const swapPool = await viem.deployContract("SwapPool", [herena.address]);
+  const swapPool = await deploy("SwapPool", [herena.address]);
 
   // 8. Wire ProofManager -> VotingManager
-  await proofManager.write.setVotingManager([votingManager.address], {
-    account: deployer.account,
-  });
-
-  // 9. Authorize ProofManager & VotingManager in TaskManager
-  await taskManager.write.setProofManager([proofManager.address], {
-    account: deployer.account,
-  });
-  await taskManager.write.setVotingManager(
-    [votingManager.address, parseEther("1000000000")],
-    { account: deployer.account },
+  await logWrite(
+    "ProofManager.setVotingManager",
+    proofManager.contract.write.setVotingManager([votingManager.address], {
+      account: deployer.account,
+    }),
   );
 
-  // 10. Initial mint to treasury already done in Herena constructor
+  // 9. Authorize ProofManager & VotingManager in TaskManager
+  await logWrite(
+    "TaskManager.setProofManager",
+    taskManager.contract.write.setProofManager([proofManager.address], {
+      account: deployer.account,
+    }),
+  );
+  await logWrite(
+    "TaskManager.setVotingManager",
+    taskManager.contract.write.setVotingManager(
+      [votingManager.address, parseEther("1000000000")],
+      { account: deployer.account },
+    ),
+  );
 
   const deploymentsPath = join(process.cwd(), "deployments.json");
   let existing: Record<string, DeploymentRecord> = {};
@@ -97,24 +136,33 @@ async function main() {
 
   const chainId = await publicClient.getChainId();
   existing[String(chainId)] = {
-    Herena: herena.address,
-    StakingManager: stakingManager.address,
-    TaskManager: taskManager.address,
-    ProofManager: proofManager.address,
-    VotingManager: votingManager.address,
-    SwapPool: swapPool.address,
+    Herena: { address: herena.address, deployTxHash: herena.hash },
+    StakingManager: {
+      address: stakingManager.address,
+      deployTxHash: stakingManager.hash,
+    },
+    TaskManager: {
+      address: taskManager.address,
+      deployTxHash: taskManager.hash,
+    },
+    ProofManager: {
+      address: proofManager.address,
+      deployTxHash: proofManager.hash,
+    },
+    VotingManager: {
+      address: votingManager.address,
+      deployTxHash: votingManager.hash,
+    },
+    SwapPool: { address: swapPool.address, deployTxHash: swapPool.hash },
+    setupTxHashes: txLog,
   };
 
   writeFileSync(deploymentsPath, JSON.stringify(existing, null, 2));
 
-  console.log("Deployed contracts:");
-  console.log("Herena:", herena.address);
-  console.log("StakingManager:", stakingManager.address);
-  console.log("TaskManager:", taskManager.address);
-  console.log("ProofManager:", proofManager.address);
-  console.log("VotingManager:", votingManager.address);
-  console.log("SwapPool:", swapPool.address);
-  console.log("Deployments saved to", deploymentsPath);
+  console.log("\nDeployments saved to", deploymentsPath);
+  console.log(
+    "\nView on HashScan: https://hashscan.io/testnet/transaction/<TX_HASH>",
+  );
 }
 
 main().catch((error) => {

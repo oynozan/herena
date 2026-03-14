@@ -1,30 +1,55 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 
 import UserTaskWrapper from "./TaskWrapper";
 import Pagination from "@/components/Table/Pagination";
-import { mockUserTasks } from "@/lib/mock-data";
+import { fetchUserTasks } from "@/lib/api";
+import type { UserTask } from "@/lib/types";
 
 const PER_PAGE = 5;
 
 export default function UserTasksTable() {
+    const { user } = usePrivy();
     const [activePage, setActivePage] = useState(1);
     const [completedPage, setCompletedPage] = useState(1);
+    const [userTasks, setUserTasks] = useState<UserTask[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function load() {
+            const wallet = user?.wallet?.address;
+            if (!wallet) {
+                setLoading(false);
+                return;
+            }
+            setLoading(true);
+            try {
+                const res = await fetchUserTasks(wallet);
+                setUserTasks(res.userTasks.filter(ut => ut.task !== null));
+            } catch (err) {
+                console.error("Failed to fetch user tasks:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        load();
+    }, [user?.wallet?.address]);
 
     const activeTasks = useMemo(
         () =>
-            mockUserTasks.filter(
+            userTasks.filter(
                 t =>
                     t.status === "joined" ||
                     t.status === "proof_submitted" ||
                     t.status === "pending_verification",
             ),
-        [],
+        [userTasks],
     );
     const completedTasks = useMemo(
-        () => mockUserTasks.filter(t => t.status === "approved" || t.status === "rejected"),
-        [],
+        () => userTasks.filter(t => t.status === "approved" || t.status === "rejected"),
+        [userTasks],
     );
 
     const activeTotalPages = Math.max(1, Math.ceil(activeTasks.length / PER_PAGE));
@@ -41,9 +66,13 @@ export default function UserTasksTable() {
         completedCurrentPage * PER_PAGE,
     );
 
+    if (loading) {
+        return <p className="text-second-foreground text-center text-sm py-8">Loading your tasks...</p>;
+    }
+
     return (
         <div className="w-full pb-4 border border-border rounded-xl flex flex-col gap-2">
-            {mockUserTasks.length === 0 ? (
+            {userTasks.length === 0 ? (
                 <p className="px-4 text-second-foreground text-center text-sm pb-4 pt-8">
                     You haven&apos;t joined any tasks yet.
                 </p>

@@ -1,0 +1,43 @@
+{
+  "296": {
+    "Herena": {
+      "address": "0x9230e22bf0eecaec0ba91f7fbaceb3cb38a7e9ce",
+      "deployTxHash": "0x877f9f6a9ae2290074d973ae10b39ac784bca44b8c83d6aa61357a3c932fc315"
+    },
+    "StakingManager": {
+      "address": "0xac121fd4164f5f4fc264a724fe62906c994db56a",
+      "deployTxHash": "0xe9aa85e54dbc2a29688ae0bc4e3cce47af9e1b9950a782a37ac4c26c4092b00b"
+    },
+    "TaskManager": {
+      "address": "0x4d79328ffec9d3438b6cfb1f77d196549d630cbc",
+      "deployTxHash": "0xf50eba0a3ccfad47d8a3bffd0609e98e4f98807d88b2eb744bde497094820349"
+    },
+    "ProofManager": {
+      "address": "0x98a1d566c998a27c10d589caa6926f4ed5eda2e9",
+      "deployTxHash": "0xde22a4f011a83e2c3cdef8edd70219471f26853df3ad5ccd9a0037272b47d2de"
+    },
+    "VotingManager": {
+      "address": "0x2f6d4513d84c5f047101a8f4e26f1e631c739a64",
+      "deployTxHash": "0xb13626cba38583e84877a3b133aa26c8a4571d64ee17ad9311c55183d03f85de"
+    },
+    "SwapPool": {
+      "address": "0xd90bab4b125dd82de3d397a4fb266cb8a13ce46c",
+      "deployTxHash": "0xe3956f2b18461d743858981daa028edc361bd9188a601d54cc849008c53acf0a"
+    },
+    "setupTxHashes": [
+      "0x5768707dbddb513fd9497dc2f29cd06b6055631dfb9dd9b8227ecfdc94069e57",
+      "0x4c44718aad322ef05e21267215990fc5abf3fc8f5b0883986236d1245b3b0e28",
+      "0xcde4e958bbd8ff703c407cc8042c69e0c0b8050d2df722e2f6ead1b83fa96f69",
+      "0x99fbbe40226dfc43cee6f185efac66045c616e671f96ac5ae0d3952825b1de81",
+      "0xd7480d785a49b7f1a23989e75a8680896addf29cac2b7d210e09686db5bbc2ba"
+    ]
+  },
+  "31337": {
+    "Herena": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+    "StakingManager": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+    "TaskManager": "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9",
+    "ProofManager": "0x0165878a594ca255338adfa4d48449f69242eb8f",
+    "VotingManager": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853",
+    "SwapPool": "0x2279b7a0a67db372996a5fab50d91eaa73d2ebe6"
+  }
+}

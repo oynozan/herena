@@ -1,8 +1,5 @@
-"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-
-import TaskDetails from "../Details";
 import type { Task } from "@/lib/types";
 
 const categoryColors: Record<string, string> = {
@@ -24,17 +21,13 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function TaskWrapper({ task }: { task: Task }) {
-    const [isOpen, setIsOpen] = useState(false);
-
     return (
         <div className="w-full">
-            <div
-                className={`border border-border hover:bg-primary/3 transition-all duration-200 rounded-xl ${isOpen ? "rounded-b-none" : ""}`}
+            <Link
+                href={`/task/${task.id}`}
+                className="block border border-border hover:bg-primary/3 transition-all duration-200 rounded-xl"
             >
-                <div
-                    className="group flex justify-between pl-4 cursor-pointer"
-                    onClick={() => setIsOpen(!isOpen)}
-                >
+                <div className="group flex justify-between pl-4">
                     <div className="flex flex-col py-6">
                         <h3 className="text-2xl font-semibold group-hover:text-primary transition-colors">
                             {task.title}
@@ -67,16 +60,7 @@ export default function TaskWrapper({ task }: { task: Task }) {
                         <p className="text-primary font-ibm-plex-mono text-xl">{task.reward} RN</p>
                     </div>
                 </div>
-                {isOpen && (
-                    <div className="overflow-hidden border-border rounded-b-xl">
-                        <div className="bg-background">
-                            <div className="p-4 border-t border-border">
-                                <TaskDetails task={task} />
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+            </Link>
         </div>
     );
 }
