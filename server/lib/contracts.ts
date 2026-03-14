@@ -1,0 +1,125 @@
+import { ethers } from "ethers";
+
+const TASK_MANAGER_ABI = [
+    "event TaskCreated(uint256 indexed id, string description, uint256 rewardPerCompletion, uint256 maxCompletions, uint256 deadline, string metadataURI)",
+    "event TaskCompletionIncremented(uint256 indexed id, uint256 newCompletedCount)",
+    "event TaskCancelled(uint256 indexed id, uint256 refundedAmount)",
+    "function getTask(uint256 taskId) view returns (tuple(uint256 id, string description, uint256 rewardPerCompletion, uint256 maxCompletions, uint256 completedCount, uint256 deadline, bool active, string metadataURI))",
+];
+
+const PROOF_MANAGER_ABI = [
+    "event ProofSubmitted(uint256 indexed proofId, uint256 indexed taskId, address indexed submitter, string proofURI)",
+    "function getProof(uint256 proofId) view returns (tuple(uint256 id, uint256 taskId, address submitter, string proofURI, uint256 timestamp, bool resolved))",
+];
+
+const VOTING_MANAGER_ABI = [
+    "event ProposalCreated(uint256 indexed id, uint256 indexed proofId, uint256 voteStart, uint256 voteEnd)",
+    "event Voted(uint256 indexed proposalId, address indexed voter, bool approve, uint256 votingPower)",
+    "event ProposalResolved(uint256 indexed id, bool approved)",
+    "function getProposal(uint256 proposalId) view returns (tuple(uint256 id, uint256 proofId, uint256 approveVotes, uint256 rejectVotes, uint256 voteStart, uint256 voteEnd, bool resolved, bool approved))",
+];
+
+const STAKING_MANAGER_ABI = [
+    "event Staked(address indexed user, uint256 amount)",
+    "event Unstaked(address indexed user, uint256 amount)",
+    "function getStakedAmount(address user) view returns (uint256)",
+    "function getVotingPower(address user) view returns (uint256)",
+];
+
+const SWAP_POOL_ABI = [
+    "event SwappedHBARForToken(address indexed user, uint256 hbarIn, uint256 tokenOut)",
+    "event SwappedTokenForHBAR(address indexed user, uint256 tokenIn, uint256 hbarOut)",
+    "event LiquidityAdded(address indexed provider, uint256 tokenAmount, uint256 hbarAmount, uint256 lpMinted)",
+    "event LiquidityRemoved(address indexed provider, uint256 tokenAmount, uint256 hbarAmount, uint256 lpBurned)",
+    "function getHBARBalance() view returns (uint256)",
+];
+
+const HERENA_ABI = [
+    "function balanceOf(address account) view returns (uint256)",
+];
+
+let wsProvider: ethers.WebSocketProvider;
+let httpProvider: ethers.JsonRpcProvider;
+let taskManager: ethers.Contract;
+let proofManager: ethers.Contract;
+let votingManager: ethers.Contract;
+let stakingManager: ethers.Contract;
+let swapPool: ethers.Contract;
+let herenaToken: ethers.Contract;
+
+function getAddresses() {
+    const addresses = {
+        taskManager: process.env.TASK_MANAGER_ADDRESS!,
+        proofManager: process.env.PROOF_MANAGER_ADDRESS!,
+        votingManager: process.env.VOTING_MANAGER_ADDRESS!,
+        stakingManager: process.env.STAKING_MANAGER_ADDRESS!,
+        swapPool: process.env.SWAP_POOL_ADDRESS!,
+        herena: process.env.HERENA_ADDRESS!,
+    };
+
+    for (const [name, addr] of Object.entries(addresses)) {
+        if (!addr) throw new Error(`Missing ${name.replace(/([A-Z])/g, "_$1").toUpperCase()}_ADDRESS env var`);
+    }
+
+    return addresses;
+}
+
+export function initContracts() {
+    const wsUrl = process.env.HEDERA_WS_URL;
+    const rpcUrl = process.env.HEDERA_RPC_URL;
+    if (!wsUrl) throw new Error("Missing HEDERA_WS_URL env var");
+    if (!rpcUrl) throw new Error("Missing HEDERA_RPC_URL env var");
+
+    wsProvider = new ethers.WebSocketProvider(wsUrl);
+    httpProvider = new ethers.JsonRpcProvider(rpcUrl);
+
+    const addresses = getAddresses();
+
+    // Event-listening contracts use WebSocket provider
+    taskManager = new ethers.Contract(addresses.taskManager, TASK_MANAGER_ABI, wsProvider);
+    proofManager = new ethers.Contract(addresses.proofManager, PROOF_MANAGER_ABI, wsProvider);
+    votingManager = new ethers.Contract(addresses.votingManager, VOTING_MANAGER_ABI, wsProvider);
+    stakingManager = new ethers.Contract(addresses.stakingManager, STAKING_MANAGER_ABI, wsProvider);
+    swapPool = new ethers.Contract(addresses.swapPool, SWAP_POOL_ABI, wsProvider);
+
+    // Read-only contract uses HTTP provider
+    herenaToken = new ethers.Contract(addresses.herena, HERENA_ABI, httpProvider);
+
+    wsProvider.on("error", (err) => {
+        console.error("WebSocket provider error:", err);
+        console.log("Reconnecting in 3s...");
+        setTimeout(initContracts, 3000);
+    });
+}
+
+export function getWsProvider() {
+    return wsProvider;
+}
+
+export function getHttpProvider() {
+    return httpProvider;
+}
+
+export function getTaskManager() {
+    return taskManager;
+}
+
+export function getProofManager() {
+    return proofManager;
+}
+
+export function getVotingManager() {
+    return votingManager;
+}
+
+export function getStakingManager() {
+    return stakingManager;
+}
+
+export function getSwapPool() {
+    return swapPool;
+}
+
+export function getHerenaToken() {
+    return herenaToken;
+}
