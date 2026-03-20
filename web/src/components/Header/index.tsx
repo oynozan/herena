@@ -46,7 +46,7 @@ export default function Header() {
                     <Link href="/whitepaper">Whitepaper</Link>
                     <Link href="/my-tasks">My Impact</Link>
                 </div>
-                <div className="flex-1 flex justify-end gap-2">
+                <div className="flex-1 flex justify-end items-center gap-2">
                     <Button
                         variant="outline"
                         size="icon"

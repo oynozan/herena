@@ -1,43 +1,35 @@
 {
   "296": {
     "Herena": {
-      "address": "0x9230e22bf0eecaec0ba91f7fbaceb3cb38a7e9ce",
-      "deployTxHash": "0x877f9f6a9ae2290074d973ae10b39ac784bca44b8c83d6aa61357a3c932fc315"
+      "address": "0x16ca2e4dae67bcea7b55ebb026235c72f80d8975",
+      "deployTxHash": "0x22e0fd9de338494ef9fe426c692ade388103f1d2a3a94a0cd36cb4a0e83520fc"
     },
     "StakingManager": {
-      "address": "0xac121fd4164f5f4fc264a724fe62906c994db56a",
-      "deployTxHash": "0xe9aa85e54dbc2a29688ae0bc4e3cce47af9e1b9950a782a37ac4c26c4092b00b"
+      "address": "0x1f90135c0783e9a2e92e1acb5063ea1b42c22dbb",
+      "deployTxHash": "0x9f9c8f5680c550eb19445ad54040fbe748e9dc315a1afd003b28cd65ab7f6495"
     },
     "TaskManager": {
-      "address": "0x4d79328ffec9d3438b6cfb1f77d196549d630cbc",
-      "deployTxHash": "0xf50eba0a3ccfad47d8a3bffd0609e98e4f98807d88b2eb744bde497094820349"
+      "address": "0xd3db10a78cca842ef3c3893051c8cada306f976f",
+      "deployTxHash": "0xa1a45d00981c8ffb48cec49edfb50178807484f3bf6e12cac5b9515d53347ce7"
     },
     "ProofManager": {
-      "address": "0x98a1d566c998a27c10d589caa6926f4ed5eda2e9",
-      "deployTxHash": "0xde22a4f011a83e2c3cdef8edd70219471f26853df3ad5ccd9a0037272b47d2de"
+      "address": "0x78f23585cd4855374c1eb6a32e9d6b21f8ecb44d",
+      "deployTxHash": "0x3fe52f9c6dc02424920b6a4e137c7bdac1b8c0728fa37272234ec801b5b19d7e"
     },
     "VotingManager": {
-      "address": "0x2f6d4513d84c5f047101a8f4e26f1e631c739a64",
-      "deployTxHash": "0xb13626cba38583e84877a3b133aa26c8a4571d64ee17ad9311c55183d03f85de"
+      "address": "0xbaca690cdc9d6d6e151177916f5594a2424faa30",
+      "deployTxHash": "0x96d0601ee535a6f191bc71a8914de7f80d0b340f67991e1d28e4e7621c65c96e"
     },
     "SwapPool": {
-      "address": "0xd90bab4b125dd82de3d397a4fb266cb8a13ce46c",
-      "deployTxHash": "0xe3956f2b18461d743858981daa028edc361bd9188a601d54cc849008c53acf0a"
+      "address": "0x1ce32951c11f82480302e444610a1c9bf84fef56",
+      "deployTxHash": "0x22c8fb43932439f0c643554ae499435b1b42dc7c84256ecca3127ff52c96ccbb"
     },
     "setupTxHashes": [
-      "0x5768707dbddb513fd9497dc2f29cd06b6055631dfb9dd9b8227ecfdc94069e57",
-      "0x4c44718aad322ef05e21267215990fc5abf3fc8f5b0883986236d1245b3b0e28",
-      "0xcde4e958bbd8ff703c407cc8042c69e0c0b8050d2df722e2f6ead1b83fa96f69",
-      "0x99fbbe40226dfc43cee6f185efac66045c616e671f96ac5ae0d3952825b1de81",
-      "0xd7480d785a49b7f1a23989e75a8680896addf29cac2b7d210e09686db5bbc2ba"
+      "0x2a7f0f7a92ba319bc9474fb7237b9c57a1c29d862c2b7de1d334c29ea1a9ede6",
+      "0xb4d71264e4b412128aa61afb8cf377f4d03c71953b9f1f750b761bf7a5c82423",
+      "0x5bebab0b00662a5cfec284f9b3b82cf5005fb83e89c381a90b1d19ebe5903593",
+      "0x6042fe3b92db6c2cbc5c44702740b53175ce2980d432dfe70679b9a599589472",
+      "0x3a5469ee58527daabd41889f60f139070b60b6b6fb928eb370969c06d19fbdd5"
     ]
-  },
-  "31337": {
-    "Herena": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
-    "StakingManager": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
-    "TaskManager": "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9",
-    "ProofManager": "0x0165878a594ca255338adfa4d48449f69242eb8f",
-    "VotingManager": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853",
-    "SwapPool": "0x2279b7a0a67db372996a5fab50d91eaa73d2ebe6"
   }
 }

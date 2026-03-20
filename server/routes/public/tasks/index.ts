@@ -2,8 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 
 import Task from "../../../models/Task";
-import UserTask from "../../../models/UserTask";
-import { authRequired } from "../../middleware";
+import Proof from "../../../models/Proof";
 
 const router = Router();
 
@@ -77,6 +76,27 @@ router.get("/", async (req: Request, res: Response) => {
     }
 });
 
+router.get("/:id/proofs", async (req: Request, res: Response) => {
+    try {
+        const taskId = Number(req.params.id);
+        const proofs = await Proof.find({ taskId })
+            .sort({ timestamp: -1 })
+            .lean();
+        res.json({
+            proofs: proofs.map(p => ({
+                proofId: p.proofId,
+                submitter: p.submitter,
+                proofURI: p.proofURI,
+                timestamp: p.timestamp.toISOString(),
+                resolved: p.resolved,
+            })),
+        });
+    } catch (err) {
+        console.error("GET /tasks/:id/proofs error:", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 router.get("/:id", async (req: Request, res: Response) => {
     try {
         const task = await Task.findOne({ taskId: Number(req.params.id) }).lean();
@@ -101,42 +121,6 @@ router.get("/:id", async (req: Request, res: Response) => {
         });
     } catch (err) {
         console.error("GET /tasks/:id error:", err);
-        res.status(500).json({ error: "Internal server error" });
-    }
-});
-
-router.post("/:id/join", authRequired, async (req: Request, res: Response) => {
-    try {
-        const taskId = Number(req.params.id);
-        const user = req.body.wallet?.toLowerCase();
-        if (!user) {
-            res.status(400).json({ error: "Wallet address required" });
-            return;
-        }
-
-        const task = await Task.findOne({ taskId });
-        if (!task) {
-            res.status(404).json({ error: "Task not found" });
-            return;
-        }
-
-        if (task.status !== "active") {
-            res.status(400).json({ error: "Task is not active" });
-            return;
-        }
-
-        const existing = await UserTask.findOne({ user, taskId });
-        if (existing) {
-            res.status(400).json({ error: "Already joined this task" });
-            return;
-        }
-
-        const userTask = await UserTask.create({ user, taskId, status: "joined", earnedRN: 0 });
-        await Task.findOneAndUpdate({ taskId }, { $inc: { participants: 1 } });
-
-        res.json({ success: true, userTask });
-    } catch (err) {
-        console.error("POST /tasks/:id/join error:", err);
         res.status(500).json({ error: "Internal server error" });
     }
 });

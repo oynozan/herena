@@ -61,3 +61,11 @@ export interface StakingInfo {
     rewards: number;
     apy: number;
 }
+
+export interface TaskProof {
+    proofId: number;
+    submitter: string;
+    proofURI: string;
+    timestamp: string;
+    resolved: boolean;
+}

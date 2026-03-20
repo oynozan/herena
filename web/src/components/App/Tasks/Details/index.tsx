@@ -1,144 +1,80 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useState, useCallback } from "react";
+import { useWallets } from "@privy-io/react-auth";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { Task } from "@/lib/types";
-import { joinTask } from "@/lib/api";
-import { submitTaskProof } from "@/lib/hedera";
+import ProofComposer from "./ProofComposer";
+import ProofForum from "./ProofForum";
 
 export default function TaskDetails({ task }: { task: Task }) {
-    const { user } = usePrivy();
     const { wallets } = useWallets();
-    const [proofUrl, setProofUrl] = useState("");
-    const [joining, setJoining] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
+    const [forumKey, setForumKey] = useState(0);
 
-    const handleJoin = async () => {
-        const wallet = user?.wallet?.address;
-        if (!wallet) {
-            toast.error("Please connect your wallet first");
-            return;
-        }
-        setJoining(true);
-        try {
-            await joinTask(task.id, wallet);
-            toast.success("You have joined this task!");
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to join task");
-        } finally {
-            setJoining(false);
-        }
-    };
+    const walletProvider = wallets[0];
 
-    const handleSubmitProof = async () => {
-        if (!proofUrl) {
-            toast.error("Please enter a proof URL");
-            return;
-        }
-        const wallet = wallets[0];
-        if (!wallet) {
-            toast.error("Please connect your wallet first");
-            return;
-        }
-        setSubmitting(true);
-        try {
-            const provider = await wallet.getEthereumProvider();
-            await submitTaskProof(provider, {
-                taskId: task.id,
-                proofUrl,
-                proofType: task.proofType,
-            });
-            toast.success("Proof submitted for verification!");
-            setProofUrl("");
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to submit proof");
-        } finally {
-            setSubmitting(false);
-        }
-    };
+    const handleProofSuccess = useCallback(() => {
+        setForumKey(k => k + 1);
+    }, []);
 
     return (
-        <div className="flex gap-4 w-full">
-            <div className="w-2/3 flex flex-col gap-4 px-12 py-6">
-                <div>
-                    <h3 className="text-lg font-semibold">Task Description</h3>
-                    <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="border border-border rounded-lg p-4 bg-background">
-                        <p className="text-xs text-muted-foreground">Category</p>
-                        <p className="font-semibold capitalize">{task.category}</p>
-                    </div>
-                    <div className="border border-border rounded-lg p-4 bg-background">
-                        <p className="text-xs text-muted-foreground">Proof Required</p>
-                        <p className="font-semibold">{task.proofType}</p>
-                    </div>
-                    <div className="border border-border rounded-lg p-4 bg-background">
-                        <p className="text-xs text-muted-foreground">Progress</p>
-                        <p className="font-semibold">
-                            {task.completedCount} / {task.maxParticipants} completed
-                        </p>
-                        <div className="w-full bg-border rounded-full h-2 mt-2">
-                            <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{
-                                    width: `${(task.completedCount / task.maxParticipants) * 100}%`,
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <div className="border border-border rounded-lg p-4 bg-background">
-                        <p className="text-xs text-muted-foreground">Deadline</p>
-                        <p className="font-semibold">{task.deadline}</p>
-                    </div>
-                </div>
+        <div className="flex flex-col gap-6 w-full px-12 py-6">
+            <div>
+                <h3 className="text-lg font-semibold">Task Description</h3>
+                <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
             </div>
-            <div className="w-1/3 border border-border rounded-xl bg-primary/3">
-                <div className="flex flex-col justify-between gap-8 h-full">
-                    <div className="flex flex-col p-4 pb-0 pt-4">
-                        <h2 className="text-xl font-semibold">Join Task</h2>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Earn {task.reward} RN upon verified completion
-                        </p>
-                        <Button
-                            className="mt-4 w-full"
-                            onClick={handleJoin}
-                            disabled={joining}
-                        >
-                            {joining ? "Joining..." : "Join Task"}
-                        </Button>
-                    </div>
-                    <div className="flex flex-col px-4 py-0">
-                        <h2 className="text-xl font-semibold">Submit Proof</h2>
-                        <Input
-                            className="mt-3 bg-background rounded-[4px]"
-                            placeholder="Paste proof URL..."
-                            type="url"
-                            value={proofUrl}
-                            onChange={e => setProofUrl(e.target.value)}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="border border-border rounded-lg p-4 bg-background">
+                    <p className="text-xs text-muted-foreground">Category</p>
+                    <p className="font-semibold capitalize">{task.category}</p>
+                </div>
+                <div className="border border-border rounded-lg p-4 bg-background">
+                    <p className="text-xs text-muted-foreground">Proof Required</p>
+                    <p className="font-semibold">{task.proofType}</p>
+                </div>
+                <div className="border border-border rounded-lg p-4 bg-background">
+                    <p className="text-xs text-muted-foreground">Progress</p>
+                    <p className="font-semibold">
+                        {task.completedCount} / {task.maxParticipants} completed
+                    </p>
+                    <div className="w-full bg-border rounded-full h-2 mt-2">
+                        <div
+                            className="bg-primary h-2 rounded-full"
+                            style={{
+                                width: `${(task.completedCount / task.maxParticipants) * 100}%`,
+                            }}
                         />
-                        <Button
-                            className="mt-2 w-full"
-                            variant="secondary"
-                            onClick={handleSubmitProof}
-                            disabled={submitting}
-                        >
-                            {submitting ? "Submitting..." : "Submit Proof"}
-                        </Button>
-                    </div>
-                    <div className="flex-1 flex flex-col border-t border-border p-4">
-                        <p className="text-sm text-second-foreground">
-                            After submitting proof, your action will be reviewed by DAO members
-                            through quadratic voting. Verified completions are rewarded in RN
-                            tokens.
-                        </p>
                     </div>
                 </div>
+                <div className="border border-border rounded-lg p-4 bg-background">
+                    <p className="text-xs text-muted-foreground">Deadline</p>
+                    <p className="font-semibold">{task.deadline}</p>
+                </div>
             </div>
+
+            <p className="text-sm text-muted-foreground">
+                Earn {task.reward} RN upon verified completion. Submit a proof to participate.
+            </p>
+
+            {walletProvider && (
+                <div>
+                    <h3 className="text-lg font-semibold mb-2">Submit Proof</h3>
+                    <ProofComposer
+                        task={task}
+                        wallet={walletProvider}
+                        onSuccess={handleProofSuccess}
+                    />
+                </div>
+            )}
+
+            <div>
+                <ProofForum taskId={task.id} refreshKey={forumKey} />
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+                After submitting proof, your action will be reviewed by DAO members through
+                quadratic voting. Verified completions are rewarded in RN tokens.
+            </p>
         </div>
     );
 }

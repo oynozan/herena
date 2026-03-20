@@ -24,7 +24,7 @@ export default defineConfig({
             type: "http",
             chainType: "l1",
             url: configVariable("HEDERA_TESTNET_RPC"),
-            accounts: [configVariable("PRIVATE_KEY")],
+            accounts: [configVariable("HEDERA_PRIVATE_KEY")],
             chainId: 296,
         },
         hardhatMainnet: {

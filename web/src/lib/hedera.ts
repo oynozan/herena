@@ -1,9 +1,5 @@
 import { ethers } from "ethers";
 
-const PROOF_MANAGER_ABI = [
-    "function submitProof(uint256 taskId, string proofURI) external returns (uint256)",
-];
-
 const VOTING_MANAGER_ABI = [
     "function vote(uint256 proposalId, bool approve) external",
 ];
@@ -54,35 +50,8 @@ export interface VoteParams {
     direction: "yes" | "no";
 }
 
-export interface TaskSubmission {
-    taskId: string;
-    proofUrl: string;
-    proofType: string;
-}
-
 function getSigner(walletProvider: any): ethers.BrowserProvider {
     return new ethers.BrowserProvider(walletProvider);
-}
-
-export async function submitTaskProof(
-    walletProvider: any,
-    params: TaskSubmission,
-): Promise<string> {
-    const browserProvider = getSigner(walletProvider);
-    const signer = await browserProvider.getSigner();
-
-    const proofManager = new ethers.Contract(
-        getAddress("PROOF_MANAGER"),
-        PROOF_MANAGER_ABI,
-        signer,
-    );
-
-    const tx = await proofManager.submitProof(
-        BigInt(params.taskId),
-        params.proofUrl,
-    );
-    const receipt = await tx.wait();
-    return receipt.hash;
 }
 
 export async function castVote(

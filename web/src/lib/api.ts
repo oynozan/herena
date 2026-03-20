@@ -1,9 +1,49 @@
-import type { Task, UserTask, Proposal, StakingInfo } from "./types";
+import type { Task, UserTask, Proposal, StakingInfo, TaskProof } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+/**
+ * Privy must not be imported at module top level: Server Components import this file and
+ * @privy-io/react-auth uses React createContext, which breaks in the RSC React build.
+ */
+async function getPrivyIdentityToken(): Promise<string> {
+    if (typeof window === "undefined") {
+        return "";
+    }
+    try {
+        const { getIdentityToken } = await import("@privy-io/react-auth");
+        return (await getIdentityToken()) || "";
+    } catch {
+        return "";
+    }
+}
+
+export interface AppConfig {
+    ipfsGateway: string | null;
+}
+
+let configCache: AppConfig | null = null;
+
+export async function fetchConfig(): Promise<AppConfig> {
+    if (configCache) return configCache;
+    configCache = await request<AppConfig>("/config");
+    return configCache;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchWithWallet(url: string, options?: any) {
+    const token = await getPrivyIdentityToken();
+
+    const headers = {
+        ...options?.headers,
+        "privy-id-token": token || "",
+    };
+
+    return fetch(url, { ...options, headers });
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetchWithWallet(`${API_URL}${path}`, {
         credentials: "include",
         ...options,
     });
@@ -51,12 +91,45 @@ export async function fetchTask(id: string): Promise<Task> {
     return request<Task>(`/tasks/${id}`);
 }
 
-export async function joinTask(taskId: string, wallet: string): Promise<{ success: boolean }> {
-    return request<{ success: boolean }>(`/tasks/${taskId}/join`, {
+export interface TaskProofsResponse {
+    proofs: TaskProof[];
+}
+
+export async function fetchTaskProofs(taskId: string): Promise<TaskProofsResponse> {
+    return request<TaskProofsResponse>(`/tasks/${taskId}/proofs`);
+}
+
+export async function uploadProofImage(file: File): Promise<{ cid: string; src: string }> {
+    console.log("[api] uploadProofImage: file", file?.name, file?.size, file?.type);
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetchWithWallet(`${API_URL}/proof-artifacts/image`, {
+        method: "POST",
+        credentials: "include",
+        body: form,
+    });
+    console.log("[api] uploadProofImage: res.status", res.status);
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("[api] uploadProofImage: error", body);
+        throw new Error(body.error || `Upload failed: ${res.status}`);
+    }
+    const data = await res.json();
+    console.log("[api] uploadProofImage: success", data);
+    return data;
+}
+
+export async function uploadProofArtifact(
+    payload: { v: number; tiptap: object },
+): Promise<{ uri: string }> {
+    console.log("[api] uploadProofArtifact: payload.v", payload?.v);
+    const data = await request<{ uri: string }>("/proof-artifacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet }),
+        body: JSON.stringify({ payload }),
     });
+    console.log("[api] uploadProofArtifact: success", data);
+    return data;
 }
 
 export interface ProposalsResponse {

@@ -48,9 +48,11 @@ export default function TaskWrapper({ task }: { task: Task }) {
                     </div>
                     <div className="flex-1 flex justify-end items-center gap-4 py-6 mr-4">
                         <div className="flex items-center gap-4">
-                            <span className="font-medium bg-primary/15 text-primary px-4 py-2 rounded-full text-sm">
-                                {task.proofType}
-                            </span>
+                            {task?.proofType && (
+                                <span className="font-medium bg-primary/15 text-primary px-4 py-2 rounded-full text-sm">
+                                    {task.proofType}
+                                </span>
+                            )}
                             <span className="text-sm text-muted-foreground">
                                 Due {task.deadline}
                             </span>

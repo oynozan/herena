@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import WalletProvider from "./Wallet";
 import { ThemeProvider } from "./Theme";
 import { Toaster } from "@/components/ui/sonner";
@@ -11,8 +12,8 @@ export default function Wrapper({ children }: Readonly<{ children: React.ReactNo
             disableTransitionOnChange
         >
             <WalletProvider>
-                {children}
-                <Toaster expand richColors />
+                <Fragment key="app">{children}</Fragment>
+                <Toaster key="toaster" expand richColors />
             </WalletProvider>
         </ThemeProvider>
     );

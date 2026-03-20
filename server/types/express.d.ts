@@ -3,7 +3,7 @@ import type { IUser } from "../models/Users";
 declare global {
     namespace Express {
         interface Request {
-            user?: IUser;
+            user?: IUser | { wallet: string; id: string; email?: string };
         }
     }
 }

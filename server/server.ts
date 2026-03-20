@@ -1,5 +1,12 @@
 require("dotenv").config();
 
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("[server] unhandledRejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+    console.error("[server] uncaughtException:", err);
+});
+
 import cors from "cors";
 import helmet from "helmet";
 import mongoose from "mongoose";
@@ -41,7 +48,7 @@ app.use("/protected", verifyServerToken, protectedRoutes);
 // Socket.io
 const io = socketServer(server);
 new SocketListeners(io);
-(app as any).set("io", io);
+(app as any).set("io", io); // Expose io for routes broadcast usage
 
 // Start the server
 async function start() {

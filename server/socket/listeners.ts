@@ -3,7 +3,6 @@ import type { Socket, Server } from "socket.io";
 
 // Listener imports
 import { SocketPing } from "./socket-ping";
-import { SocketBlockchain } from "./socket-blockchain";
 
 export class SocketListeners {
     private io: Server;
@@ -13,7 +12,6 @@ export class SocketListeners {
 
         this.protectedListeners();
         this.publicListeners();
-        this.blockchainListeners();
     }
 
     protectedListeners() {
@@ -33,9 +31,5 @@ export class SocketListeners {
         publicIO.on("connection", (socket: Socket) => {
             new SocketPing(this.io, socket).listen();
         });
-    }
-
-    blockchainListeners() {
-        new SocketBlockchain(this.io);
     }
 }

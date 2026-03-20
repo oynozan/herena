@@ -37,9 +37,9 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${figtree.variable} ${manrope.variable} antialiased`}>
                 <Wrapper>
-                    <Header />
-                    <main>{children}</main>
-                    <Footer />
+                    <Header key="header" />
+                    <main key="main">{children}</main>
+                    <Footer key="footer" />
                 </Wrapper>
             </body>
         </html>

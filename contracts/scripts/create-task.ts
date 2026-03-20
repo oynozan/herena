@@ -8,7 +8,7 @@ async function main() {
   const deploymentsPath = join(process.cwd(), "deployments.json");
   const deployments = JSON.parse(readFileSync(deploymentsPath, "utf8"));
 
-  const { viem } = await network.connect();
+  const { viem } = await network.connect("hedera_testnet");
   const publicClient = await viem.getPublicClient();
   const [wallet] = await viem.getWalletClients();
 

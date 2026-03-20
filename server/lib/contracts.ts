@@ -38,8 +38,7 @@ const HERENA_ABI = [
     "function balanceOf(address account) view returns (uint256)",
 ];
 
-let wsProvider: ethers.WebSocketProvider;
-let httpProvider: ethers.JsonRpcProvider;
+let provider: ethers.JsonRpcProvider;
 let taskManager: ethers.Contract;
 let proofManager: ethers.Contract;
 let votingManager: ethers.Contract;
@@ -47,7 +46,12 @@ let stakingManager: ethers.Contract;
 let swapPool: ethers.Contract;
 let herenaToken: ethers.Contract;
 
-function getAddresses() {
+export function initContracts() {
+    const rpcUrl = process.env.HEDERA_RPC_URL;
+    if (!rpcUrl) throw new Error("Missing HEDERA_RPC_URL env var");
+
+    provider = new ethers.JsonRpcProvider(rpcUrl);
+
     const addresses = {
         taskManager: process.env.TASK_MANAGER_ADDRESS!,
         proofManager: process.env.PROOF_MANAGER_ADDRESS!,
@@ -61,43 +65,16 @@ function getAddresses() {
         if (!addr) throw new Error(`Missing ${name.replace(/([A-Z])/g, "_$1").toUpperCase()}_ADDRESS env var`);
     }
 
-    return addresses;
+    taskManager = new ethers.Contract(addresses.taskManager, TASK_MANAGER_ABI, provider);
+    proofManager = new ethers.Contract(addresses.proofManager, PROOF_MANAGER_ABI, provider);
+    votingManager = new ethers.Contract(addresses.votingManager, VOTING_MANAGER_ABI, provider);
+    stakingManager = new ethers.Contract(addresses.stakingManager, STAKING_MANAGER_ABI, provider);
+    swapPool = new ethers.Contract(addresses.swapPool, SWAP_POOL_ABI, provider);
+    herenaToken = new ethers.Contract(addresses.herena, HERENA_ABI, provider);
 }
 
-export function initContracts() {
-    const wsUrl = process.env.HEDERA_WS_URL;
-    const rpcUrl = process.env.HEDERA_RPC_URL;
-    if (!wsUrl) throw new Error("Missing HEDERA_WS_URL env var");
-    if (!rpcUrl) throw new Error("Missing HEDERA_RPC_URL env var");
-
-    wsProvider = new ethers.WebSocketProvider(wsUrl);
-    httpProvider = new ethers.JsonRpcProvider(rpcUrl);
-
-    const addresses = getAddresses();
-
-    // Event-listening contracts use WebSocket provider
-    taskManager = new ethers.Contract(addresses.taskManager, TASK_MANAGER_ABI, wsProvider);
-    proofManager = new ethers.Contract(addresses.proofManager, PROOF_MANAGER_ABI, wsProvider);
-    votingManager = new ethers.Contract(addresses.votingManager, VOTING_MANAGER_ABI, wsProvider);
-    stakingManager = new ethers.Contract(addresses.stakingManager, STAKING_MANAGER_ABI, wsProvider);
-    swapPool = new ethers.Contract(addresses.swapPool, SWAP_POOL_ABI, wsProvider);
-
-    // Read-only contract uses HTTP provider
-    herenaToken = new ethers.Contract(addresses.herena, HERENA_ABI, httpProvider);
-
-    wsProvider.on("error", (err) => {
-        console.error("WebSocket provider error:", err);
-        console.log("Reconnecting in 3s...");
-        setTimeout(initContracts, 3000);
-    });
-}
-
-export function getWsProvider() {
-    return wsProvider;
-}
-
-export function getHttpProvider() {
-    return httpProvider;
+export function getProvider() {
+    return provider;
 }
 
 export function getTaskManager() {
