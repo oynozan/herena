@@ -8,6 +8,7 @@ import Proposals from "./proposals";
 import UserRoutes from "./user";
 import Swap from "./swap";
 import ProofArtifacts from "./proofArtifacts";
+import Agentic from "./agentic";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use("/proposals", Proposals);
 router.use("/user", UserRoutes);
 router.use("/swap", Swap);
 router.use("/proof-artifacts", ProofArtifacts);
+router.use("/agentic", Agentic);
 
 export default router;
