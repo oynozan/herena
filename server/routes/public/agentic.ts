@@ -7,23 +7,19 @@ import Proof from "../../models/Proof";
 
 const router = Router();
 
-// Base descriptor for both HOL & OpenClaw
+// Base descriptor for OpenClaw / agent consumers
 router.get("/", (_req: Request, res: Response) => {
     res.json({
         name: "Herena Agentic API",
-        version: "0.2.0",
+        version: "0.3.0",
         description:
-            "Unified agent-facing interface for physical sustainability tasks, proofs and governance on Hedera.",
+            "Agent-facing HTTP API for physical sustainability tasks, proofs and governance on Hedera (OpenClaw integration surface).",
         capabilities: {
             tasks: ["list", "details"],
             proofs: ["submit", "status"],
             voting: ["listProposals", "details"],
         },
         integrations: {
-            hol: {
-                status: "active",
-                mode: "agent-intents-over-http",
-            },
             openClaw: {
                 status: "active",
                 mode: "multi-agent-coordination-over-http",
@@ -32,7 +28,7 @@ router.get("/", (_req: Request, res: Response) => {
     });
 });
 
-// Shared task listing for agents (HOL + OpenClaw)
+// Task listing for agents
 router.get("/tasks", async (req: Request, res: Response) => {
     try {
         const { status = "active", page = "1", limit = "10" } = req.query;
