@@ -2,38 +2,41 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { ethers } from "ethers";
 
-import { getSwapPool, getHerenaToken } from "../../../lib/contracts";
+import { getSwapPool } from "../../../lib/contracts";
 
 const router = Router();
 
 router.get("/pool-info", async (_req: Request, res: Response) => {
     try {
         const swapPool = getSwapPool();
-        const herenaToken = getHerenaToken();
+        if (!swapPool) {
+            console.error("[swap/pool-info] swapPool contract not initialized");
+            res.json({ hbarReserve: 0, tokenReserve: 0, rate: 0, fee: 0.3 });
+            return;
+        }
 
         let hbarReserve = 0;
         let tokenReserve = 0;
 
         try {
-            const hbarBal = await swapPool.getHBARBalance();
-            const tokenBal = await herenaToken.balanceOf(await swapPool.getAddress());
-            hbarReserve = Number(ethers.formatEther(hbarBal));
-            tokenReserve = Number(ethers.formatEther(tokenBal));
-        } catch {
-            // Contract not deployed or not accessible
+            const [hbarRaw, tokenRaw] = await Promise.all([
+                swapPool.reserveHBAR(),
+                swapPool.reserveToken(),
+            ]);
+            hbarReserve = Number(ethers.formatUnits(hbarRaw, 8));
+            tokenReserve = Number(ethers.formatEther(tokenRaw));
+            console.log("[swap/pool-info] reserves:", { hbarReserve, tokenReserve });
+        } catch (contractErr) {
+            console.error("[swap/pool-info] contract call failed:", contractErr);
         }
 
         const rate = hbarReserve > 0 ? tokenReserve / hbarReserve : 0;
         const fee = 0.3;
 
-        res.json({
-            hbarReserve,
-            tokenReserve,
-            rate,
-            fee,
-        });
+        console.log("[swap/pool-info] response:", { hbarReserve, tokenReserve, rate, fee });
+        res.json({ hbarReserve, tokenReserve, rate, fee });
     } catch (err) {
-        console.error("GET /swap/pool-info error:", err);
+        console.error("[swap/pool-info] error:", err);
         res.status(500).json({ error: "Internal server error" });
     }
 });

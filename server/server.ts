@@ -22,6 +22,8 @@ import { SocketListeners } from "./socket/listeners";
 import { userToken, verifyServerToken } from "./routes/middleware";
 import { initContracts } from "./lib/contracts";
 import { startEventListeners } from "./lib/eventSync";
+import { initHederaClient } from "./lib/events";
+import { initHCS } from "./lib/hcs";
 
 const app: Application = express();
 const server = require("http").createServer(app);
@@ -63,6 +65,8 @@ async function start() {
 
     try {
         initContracts();
+        initHederaClient();
+        initHCS();
         startEventListeners();
     } catch (err) {
         console.error("Failed to start event listeners:", err);

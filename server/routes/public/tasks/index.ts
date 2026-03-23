@@ -47,7 +47,7 @@ router.get("/", async (req: Request, res: Response) => {
         const skip = (pageNum - 1) * limitNum;
 
         const [tasks, total] = await Promise.all([
-            Task.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
+            Task.find(filter).sort({ taskId: -1 }).skip(skip).limit(limitNum).lean(),
             Task.countDocuments(filter),
         ]);
 
@@ -65,6 +65,8 @@ router.get("/", async (req: Request, res: Response) => {
                 maxParticipants: t.maxParticipants,
                 completedCount: t.completedCount,
                 createdAt: t.createdAt.toISOString().split("T")[0],
+                metadataURI: t.metadataURI || null,
+                txHash: t.txHash || null,
             })),
             total,
             page: pageNum,
@@ -79,9 +81,21 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/:id/proofs", async (req: Request, res: Response) => {
     try {
         const taskId = Number(req.params.id);
-        const proofs = await Proof.find({ taskId })
-            .sort({ timestamp: -1 })
-            .lean();
+        const { page = "1", limit = "10" } = req.query;
+
+        const pageNum = Math.max(1, Number(page));
+        const limitNum = Math.min(100, Math.max(1, Number(limit)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const [proofs, total] = await Promise.all([
+            Proof.find({ taskId })
+                .sort({ proofId: -1 })
+                .skip(skip)
+                .limit(limitNum)
+                .lean(),
+            Proof.countDocuments({ taskId }),
+        ]);
+
         res.json({
             proofs: proofs.map(p => ({
                 proofId: p.proofId,
@@ -89,7 +103,11 @@ router.get("/:id/proofs", async (req: Request, res: Response) => {
                 proofURI: p.proofURI,
                 timestamp: p.timestamp.toISOString(),
                 resolved: p.resolved,
+                txHash: p.txHash || null,
             })),
+            total,
+            page: pageNum,
+            totalPages: Math.ceil(total / limitNum),
         });
     } catch (err) {
         console.error("GET /tasks/:id/proofs error:", err);
@@ -118,6 +136,8 @@ router.get("/:id", async (req: Request, res: Response) => {
             maxParticipants: task.maxParticipants,
             completedCount: task.completedCount,
             createdAt: task.createdAt.toISOString().split("T")[0],
+            metadataURI: task.metadataURI || null,
+            txHash: task.txHash || null,
         });
     } catch (err) {
         console.error("GET /tasks/:id error:", err);

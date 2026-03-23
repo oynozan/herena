@@ -7,6 +7,7 @@ export interface IProof {
     proofURI: string;
     timestamp: Date;
     resolved: boolean;
+    txHash: string;
 }
 
 export interface IProofDocument extends IProof, Document {
@@ -21,6 +22,7 @@ const ProofSchema = new Schema<IProofDocument>(
         proofURI: { type: String, required: true },
         timestamp: { type: Date, required: true },
         resolved: { type: Boolean, default: false },
+        txHash: { type: String, default: "" },
     },
     { versionKey: false },
 );

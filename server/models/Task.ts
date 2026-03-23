@@ -13,6 +13,7 @@ export interface ITask {
     maxParticipants: number;
     completedCount: number;
     metadataURI: string;
+    txHash: string;
 }
 
 export interface ITaskDocument extends ITask, Document {
@@ -27,7 +28,6 @@ const TaskSchema = new Schema<ITaskDocument>(
         description: { type: String, required: true },
         category: {
             type: String,
-            enum: ["trees", "carbon", "recycling", "water", "energy", "other"],
             default: "other",
         },
         reward: { type: Number, required: true },
@@ -42,6 +42,7 @@ const TaskSchema = new Schema<ITaskDocument>(
         maxParticipants: { type: Number, required: true },
         completedCount: { type: Number, default: 0 },
         metadataURI: { type: String, default: "" },
+        txHash: { type: String, default: "" },
         createdAt: { type: Date, default: Date.now },
     },
     { versionKey: false },

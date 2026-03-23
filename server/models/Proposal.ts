@@ -14,6 +14,7 @@ export interface IProposal {
     totalVoters: number;
     resolved: boolean;
     approved: boolean;
+    txHash: string;
     taskProof?: {
         taskTitle: string;
         volunteer: string;
@@ -48,6 +49,7 @@ const ProposalSchema = new Schema<IProposalDocument>(
         totalVoters: { type: Number, default: 0 },
         resolved: { type: Boolean, default: false },
         approved: { type: Boolean, default: false },
+        txHash: { type: String, default: "" },
         taskProof: {
             type: new Schema(
                 {

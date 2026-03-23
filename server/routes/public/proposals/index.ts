@@ -17,7 +17,7 @@ router.get("/", async (req: Request, res: Response) => {
         const skip = (pageNum - 1) * limitNum;
 
         const [proposals, total] = await Promise.all([
-            Proposal.find(filter).sort({ voteEnd: -1 }).skip(skip).limit(limitNum).lean(),
+            Proposal.find(filter).sort({ proposalId: -1 }).skip(skip).limit(limitNum).lean(),
             Proposal.countDocuments(filter),
         ]);
 
@@ -29,10 +29,11 @@ router.get("/", async (req: Request, res: Response) => {
                 description: p.description,
                 status: p.status,
                 votingEnds: p.voteEnd.toISOString().split("T")[0],
-                yesVotes: p.approveVotes,
-                noVotes: p.rejectVotes,
+                yesVotes: p.approveVotes / 1e9,
+                noVotes: p.rejectVotes / 1e9,
                 totalVoters: p.totalVoters,
                 taskProof: p.taskProof,
+                txHash: p.txHash || null,
             })),
             total,
             page: pageNum,
@@ -59,10 +60,11 @@ router.get("/:id", async (req: Request, res: Response) => {
             description: proposal.description,
             status: proposal.status,
             votingEnds: proposal.voteEnd.toISOString().split("T")[0],
-            yesVotes: proposal.approveVotes,
-            noVotes: proposal.rejectVotes,
+            yesVotes: proposal.approveVotes / 1e9,
+            noVotes: proposal.rejectVotes / 1e9,
             totalVoters: proposal.totalVoters,
             taskProof: proposal.taskProof,
+            txHash: proposal.txHash || null,
         });
     } catch (err) {
         console.error("GET /proposals/:id error:", err);

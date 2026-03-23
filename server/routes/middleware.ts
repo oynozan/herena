@@ -55,3 +55,13 @@ export const authRequired = (req: Request, res: Response, next: NextFunction): v
     }
     next();
 };
+
+export const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
+    const adminWallet = process.env.ADMIN_WALLET?.toLowerCase();
+    const userWallet = (req.user as { wallet?: string })?.wallet?.toLowerCase();
+    if (!adminWallet || !userWallet || userWallet !== adminWallet) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+    }
+    next();
+};

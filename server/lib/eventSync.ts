@@ -8,7 +8,10 @@ import {
     getVotingManager,
     getStakingManager,
     getSwapPool,
+    getAdminVotingManager,
 } from "./contracts";
+import { logToHCS } from "./hcs";
+import { awardBadge } from "./badges";
 
 import Task from "../models/Task";
 import Proof from "../models/Proof";
@@ -24,7 +27,18 @@ let lastBlock = 0;
 
 async function fetchMetadata(uri: string) {
     try {
-        const { data } = await axios.get(uri, { timeout: 10000 });
+        const cid = uri.startsWith("ipfs://") ? uri.slice(7) : uri;
+        const api = process.env.IPFS_API?.replace(/\/$/, "");
+
+        if (api) {
+            // Use Kubo RPC /cat to avoid gateway subdomain redirect issues
+            const { data } = await axios.post(`${api}/cat?arg=${cid}`, null, { timeout: 10000 });
+            return typeof data === "string" ? JSON.parse(data) : data;
+        }
+
+        // Fallback to gateway
+        const gateway = process.env.IPFS_GATEWAY || "http://127.0.0.1:8080/ipfs";
+        const { data } = await axios.get(`${gateway.replace(/\/$/, "")}/${cid}`, { timeout: 10000 });
         return data;
     } catch (err) {
         console.error(`Failed to fetch metadata from ${uri}:`, err);
@@ -41,8 +55,10 @@ async function handleTaskCreated(log: ethers.EventLog) {
         let fullDescription = description;
 
         if (metadataURI) {
-            const meta = await fetchMetadata(metadataURI);
-            if (meta) {
+            const raw = await fetchMetadata(metadataURI);
+            if (raw) {
+                // Unwrap the { v, tiptap: { title, description, ... } } envelope
+                const meta = raw.v && raw.tiptap ? raw.tiptap : raw;
                 title = meta.title || title;
                 fullDescription = meta.description || fullDescription;
                 category = meta.category || category;
@@ -65,10 +81,12 @@ async function handleTaskCreated(log: ethers.EventLog) {
                 completedCount: 0,
                 participants: 0,
                 metadataURI,
+                txHash: log.transactionHash || "",
             },
             { upsert: true, new: true },
         );
-        console.log(`Task #${id} created`);
+        const totalBudget = Number(ethers.formatEther(rewardPerCompletion)) * Number(maxCompletions);
+        console.log(`[LIFECYCLE] Task #${id} CREATED | "${title}" | reward=${ethers.formatEther(rewardPerCompletion)} HRN | slots=${maxCompletions} | budget=${totalBudget} HRN | deadline=${new Date(Number(deadline) * 1000).toISOString()} | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling TaskCreated:", err);
     }
@@ -85,8 +103,9 @@ async function handleTaskCompletionIncremented(log: ethers.EventLog) {
         if (task && Number(newCompletedCount) >= task.maxParticipants) {
             task.status = "completed";
             await task.save();
+            console.log(`[LIFECYCLE] Task #${id} COMPLETED | all ${task.maxParticipants} slots filled`);
         }
-        console.log(`Task #${id} completion: ${newCompletedCount}`);
+        console.log(`[LIFECYCLE] Task #${id} completion incremented → ${newCompletedCount}/${task?.maxParticipants || "?"}`);
     } catch (err) {
         console.error("Error handling TaskCompletionIncremented:", err);
     }
@@ -96,7 +115,7 @@ async function handleTaskCancelled(log: ethers.EventLog) {
     const [id] = log.args;
     try {
         await Task.findOneAndUpdate({ taskId: Number(id) }, { status: "completed" });
-        console.log(`Task #${id} cancelled`);
+        console.log(`[LIFECYCLE] Task #${id} CANCELLED | unused funds returned to Treasury`);
     } catch (err) {
         console.error("Error handling TaskCancelled:", err);
     }
@@ -114,6 +133,7 @@ async function handleProofSubmitted(log: ethers.EventLog) {
                 proofURI,
                 timestamp: new Date(),
                 resolved: false,
+                txHash: log.transactionHash || "",
             },
             { upsert: true, new: true },
         );
@@ -128,9 +148,16 @@ async function handleProofSubmitted(log: ethers.EventLog) {
             { upsert: true, new: true },
         );
 
-        await Task.findOneAndUpdate({ taskId: Number(taskId) }, { $inc: { participants: 1 } });
+        // HCS audit trail
+        logToHCS({ type: "proof_submitted", proofId: Number(proofId), taskId: Number(taskId), submitter: submitter.toLowerCase() });
 
-        console.log(`Proof #${proofId} submitted for task #${taskId}`);
+        // Badge: first submission
+        const proofCount = await Proof.countDocuments({ submitter: submitter.toLowerCase() });
+        if (proofCount <= 1) {
+            awardBadge(submitter.toLowerCase(), 1).catch(err => console.error("Badge award error:", err));
+        }
+
+        console.log(`[LIFECYCLE] Proof #${proofId} SUBMITTED | task=#${taskId} | by=${submitter.toLowerCase()} | uri=${proofURI} | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling ProofSubmitted:", err);
     }
@@ -165,6 +192,7 @@ async function handleProposalCreated(log: ethers.EventLog) {
                 totalVoters: 0,
                 resolved: false,
                 approved: false,
+                txHash: log.transactionHash || "",
                 taskProof: proof
                     ? {
                           taskTitle: task?.title || `Task #${proof.taskId}`,
@@ -175,7 +203,7 @@ async function handleProposalCreated(log: ethers.EventLog) {
             },
             { upsert: true, new: true },
         );
-        console.log(`Proposal #${id} created for proof #${proofId}`);
+        console.log(`[LIFECYCLE] Proposal #${id} CREATED | proof=#${proofId} | voting=${new Date(Number(voteStart) * 1000).toISOString()} → ${new Date(Number(voteEnd) * 1000).toISOString()} | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling ProposalCreated:", err);
     }
@@ -201,7 +229,17 @@ async function handleVoted(log: ethers.EventLog) {
             : { $inc: { rejectVotes: Number(votingPower), totalVoters: 1 } };
 
         await Proposal.findOneAndUpdate({ proposalId: Number(proposalId) }, updateField);
-        console.log(`Vote on proposal #${proposalId} by ${voter}`);
+
+        // HCS audit trail
+        logToHCS({ type: "voted", proposalId: Number(proposalId), voter: voter.toLowerCase(), approve, votingPower: Number(votingPower) });
+
+        // Badge: first vote
+        const voteCount = await Vote.countDocuments({ voter: voter.toLowerCase() });
+        if (voteCount <= 1) {
+            awardBadge(voter.toLowerCase(), 4).catch(err => console.error("Badge award error:", err));
+        }
+
+        console.log(`[LIFECYCLE] VOTE on proposal #${proposalId} | by=${voter.toLowerCase()} | direction=${approve ? "APPROVE" : "REJECT"} | power=${Number(votingPower)} | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling Voted:", err);
     }
@@ -209,6 +247,7 @@ async function handleVoted(log: ethers.EventLog) {
 
 async function handleProposalResolved(log: ethers.EventLog) {
     const [id, approved] = log.args;
+    const txHash = log.transactionHash;
     try {
         const status = approved ? "passed" : "rejected";
         const proposal = await Proposal.findOneAndUpdate(
@@ -227,16 +266,48 @@ async function handleProposalResolved(log: ethers.EventLog) {
             if (proof) {
                 const userTaskStatus = approved ? "approved" : "rejected";
                 const task = await Task.findOne({ taskId: proof.taskId });
-                const earnedRN = approved && task ? task.reward : 0;
+                const submitterReward = approved && task ? task.reward * 0.8 : 0;
+                const voterRewardPool = approved && task ? task.reward * 0.2 : 0;
 
                 await UserTask.findOneAndUpdate(
                     { user: proof.submitter, taskId: proof.taskId },
-                    { status: userTaskStatus, earnedRN },
+                    { status: userTaskStatus, earnedRN: submitterReward },
                 );
+
+                if (approved && task) {
+                    console.log(`[LIFECYCLE] Proposal #${id} APPROVED | task=#${proof.taskId} | tx=${txHash}`);
+                    console.log(`[LIFECYCLE]   → Submitter ${proof.submitter} reward: ${submitterReward} HRN (80% of ${task.reward})`);
+                    console.log(`[LIFECYCLE]   → Voter reward pool: ${voterRewardPool} HRN (20% of ${task.reward})`);
+
+                    // Log individual voter rewards
+                    const approveVoters = await Vote.find({ proposalId: Number(id), approve: true }).lean();
+                    const totalApprovePower = approveVoters.reduce((sum, v) => sum + v.votingPower, 0);
+                    if (totalApprovePower > 0) {
+                        for (const v of approveVoters) {
+                            const share = (voterRewardPool * v.votingPower) / totalApprovePower;
+                            console.log(`[LIFECYCLE]   → Voter ${v.voter} reward: ${share.toFixed(4)} HRN (power=${v.votingPower}, ${((v.votingPower / totalApprovePower) * 100).toFixed(1)}%)`);
+                        }
+                    }
+                } else {
+                    console.log(`[LIFECYCLE] Proposal #${id} REJECTED | task=#${proof.taskId} | submitter=${proof.submitter} | no rewards | tx=${txHash}`);
+                }
+
+                // Badge: first approval
+                if (approved) {
+                    await Task.findOneAndUpdate({ taskId: proof.taskId }, { $inc: { participants: 1 } });
+
+                    const approvedCount = await UserTask.countDocuments({ user: proof.submitter, status: "approved" });
+                    if (approvedCount <= 1) {
+                        awardBadge(proof.submitter, 2).catch(err => console.error("Badge award error:", err));
+                    }
+                }
             }
         }
 
-        console.log(`Proposal #${id} resolved: ${status}`);
+        // HCS audit trail
+        logToHCS({ type: "proposal_resolved", proposalId: Number(id), approved });
+
+        console.log(`[LIFECYCLE] Proposal #${id} RESOLVED → ${status} | tx=${txHash}`);
     } catch (err) {
         console.error("Error handling ProposalResolved:", err);
     }
@@ -250,7 +321,17 @@ async function handleStaked(log: ethers.EventLog) {
             amount: ethers.formatEther(amount),
             action: "stake",
         });
-        console.log(`Staked by ${user}: ${ethers.formatEther(amount)}`);
+
+        // Badge: first stake >= 10 HRN
+        const stakeRecords = await StakeRecord.find({ user: user.toLowerCase() }).lean();
+        const netStaked = stakeRecords.reduce((sum, r) => {
+            return sum + (r.action === "stake" ? Number(r.amount) : -Number(r.amount));
+        }, 0);
+        if (netStaked >= 10) {
+            awardBadge(user.toLowerCase(), 3).catch(err => console.error("Badge award error:", err));
+        }
+
+        console.log(`[LIFECYCLE] STAKED | by=${user.toLowerCase()} | amount=${ethers.formatEther(amount)} HRN | netStaked=${netStaked.toFixed(2)} HRN | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling Staked:", err);
     }
@@ -264,7 +345,7 @@ async function handleUnstaked(log: ethers.EventLog) {
             amount: ethers.formatEther(amount),
             action: "unstake",
         });
-        console.log(`Unstaked by ${user}: ${ethers.formatEther(amount)}`);
+        console.log(`[LIFECYCLE] UNSTAKED | by=${user.toLowerCase()} | amount=${ethers.formatEther(amount)} HRN | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling Unstaked:", err);
     }
@@ -279,7 +360,7 @@ async function handleSwappedHBARForToken(log: ethers.EventLog) {
             amountIn: ethers.formatEther(hbarIn),
             amountOut: ethers.formatEther(tokenOut),
         });
-        console.log(`Swap HBAR->Token by ${user}`);
+        console.log(`[LIFECYCLE] SWAP HBAR→HRN | by=${user.toLowerCase()} | in=${ethers.formatEther(hbarIn)} HBAR | out=${ethers.formatEther(tokenOut)} HRN | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling SwappedHBARForToken:", err);
     }
@@ -294,21 +375,59 @@ async function handleSwappedTokenForHBAR(log: ethers.EventLog) {
             amountIn: ethers.formatEther(tokenIn),
             amountOut: ethers.formatEther(hbarOut),
         });
-        console.log(`Swap Token->HBAR by ${user}`);
+        console.log(`[LIFECYCLE] SWAP HRN→HBAR | by=${user.toLowerCase()} | in=${ethers.formatEther(tokenIn)} HRN | out=${ethers.formatEther(hbarOut)} HBAR | tx=${log.transactionHash}`);
     } catch (err) {
         console.error("Error handling SwappedTokenForHBAR:", err);
     }
 }
 
-async function pollEvents() {
+async function resolveExpiredProposals() {
+    try {
+        const adminVotingManager = getAdminVotingManager();
+
+        const expired = await Proposal.find({
+            resolved: false,
+            status: "active",
+            voteEnd: { $lte: new Date() },
+        }).lean();
+
+        for (const proposal of expired) {
+            try {
+                console.log(`[AUTO-RESOLVE] Resolving expired proposal #${proposal.proposalId}...`);
+                const tx = await adminVotingManager.resolveProposal(proposal.proposalId);
+                await tx.wait();
+                console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} resolved on-chain | tx=${tx.hash}`);
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                // Skip already-resolved proposals (contract will revert)
+                if (msg.includes("already resolved") || msg.includes("revert")) {
+                    await Proposal.findOneAndUpdate(
+                        { proposalId: proposal.proposalId },
+                        { resolved: true, status: "expired" },
+                    );
+                    console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} already resolved on-chain, marked in DB`);
+                } else {
+                    console.error(`[AUTO-RESOLVE] Failed to resolve proposal #${proposal.proposalId}:`, msg);
+                }
+            }
+        }
+    } catch (err: unknown) {
+        // ADMIN_PRIVATE_KEY not set — skip silently
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes("ADMIN_PRIVATE_KEY")) {
+            console.error("[AUTO-RESOLVE] Error:", msg);
+        }
+    }
+}
+
+export async function pollEvents() {
     try {
         const provider = getProvider();
         const currentBlock = await provider.getBlockNumber();
 
         if (lastBlock === 0) {
-            lastBlock = currentBlock;
+            lastBlock = currentBlock - 1;
             console.log(`Event polling initialized at block ${currentBlock}`);
-            return;
         }
 
         if (currentBlock <= lastBlock) return;
@@ -373,6 +492,9 @@ async function pollEvents() {
         }
 
         lastBlock = currentBlock;
+
+        // Auto-resolve expired proposals
+        await resolveExpiredProposals();
     } catch (err) {
         console.error("Event polling error:", err);
     }
