@@ -1,0 +1,19 @@
+{
+    "name": "herena-openclaw-integration-test",
+    "version": "1.0.0",
+    "private": true,
+    "description": "RunPod / CI: Herena Agentic API + on-chain prepare/sign/broadcast (OpenClaw)",
+    "type": "module",
+    "scripts": {
+        "test": "node scripts/smoke-test.mjs",
+        "test:chain": "node scripts/e2e-chain-proof.mjs",
+        "start": "node scripts/smoke-test.mjs",
+        "post-proof": "node scripts/post-proof-example.mjs"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "dependencies": {
+        "ethers": "^6.13.4"
+    }
+}
