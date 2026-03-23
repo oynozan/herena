@@ -48,11 +48,11 @@ export default function ProposalWrapper({ proposal }: { proposal: Proposal }) {
                             </span>
                             <div className="flex items-center gap-1 text-sm">
                                 <span className="text-success font-medium">
-                                    {proposal.yesVotes}
+                                    {Math.round(proposal.yesVotes)}
                                 </span>
                                 <span className="text-muted-foreground">/</span>
                                 <span className="text-destructive font-medium">
-                                    {proposal.noVotes}
+                                    {Math.round(proposal.noVotes)}
                                 </span>
                             </div>
                         </div>

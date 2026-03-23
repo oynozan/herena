@@ -1,115 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
 
 import { fetchTaskProofs } from "@/lib/api";
 import type { TaskProof } from "@/lib/types";
+import { resolveIpfsUrl } from "@/lib/ipfs";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
-const extensions = [StarterKit, Image];
-
-function transformIpfsSrcs(doc: object): object {
-    const visit = (node: any): any => {
-        if (!node) return node;
-        if (node.type === "image" && node.attrs?.src?.startsWith("ipfs://")) {
-            const cid = node.attrs.src.replace("ipfs://", "");
-            return {
-                ...node,
-                attrs: { ...node.attrs, src: `${process.env.NEXT_PUBLIC_IPFS_GATEWAY}/${cid}` },
-            };
-        }
-        if (node.content) {
-            return { ...node, content: node.content.map(visit) };
-        }
-        return node;
-    };
-    return visit(doc);
-}
-
-function resolveProofUrl(uri: string): string {
-    if (uri.startsWith("ipfs://")) {
-        const cid = uri.replace("ipfs://", "");
-        return `${process.env.NEXT_PUBLIC_IPFS_GATEWAY}/${cid}`;
-    }
-    return uri;
-}
-
-function ProofCard({ proof }: { proof: TaskProof }) {
-    const [content, setContent] = useState<object | null>(null);
-    const [error, setError] = useState(false);
-
-    useEffect(() => {
-        const url = resolveProofUrl(proof.proofURI);
-        fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                const doc = transformIpfsSrcs(data?.v === 1 && data?.tiptap ? data.tiptap : data);
-                setContent(doc);
-            })
-            .catch(() => setError(true));
-    }, [proof.proofURI]);
-
-    const editor = useEditor({
-        extensions,
-        content: content ?? "",
-        editable: false,
-        immediatelyRender: false,
-        editorProps: {
-            attributes: {
-                class: "prose prose-sm dark:prose-invert max-w-none min-h-0",
-            },
-        },
-    });
-
-    useEffect(() => {
-        if (content && editor) {
-            editor.commands.setContent(content);
-        }
-    }, [content, editor]);
-
-    const shortAddr = `${proof.submitter.slice(0, 6)}...${proof.submitter.slice(-4)}`;
-    const date = new Date(proof.timestamp).toLocaleString();
-
-    if (error) {
-        return (
-            <div className="border border-border rounded-lg p-4 bg-background">
-                <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                    <span>{shortAddr}</span>
-                    <span>{date}</span>
-                </div>
-                <a
-                    href={resolveProofUrl(proof.proofURI)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                >
-                    Open proof link
-                </a>
-            </div>
-        );
-    }
-
-    if (!content) {
-        return (
-            <div className="border border-border rounded-lg p-4 bg-background animate-pulse">
-                <div className="h-4 bg-muted rounded w-1/3 mb-2" />
-                <div className="h-3 bg-muted rounded w-full" />
-            </div>
-        );
-    }
-
-    return (
-        <div className="border border-border rounded-lg p-4 bg-background">
-            <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                <span>{shortAddr}</span>
-                <span>{date}</span>
-            </div>
-            <EditorContent editor={editor} />
-        </div>
-    );
-}
+const PAGE_SIZE = 10;
 
 interface ProofForumProps {
     taskId: string;
@@ -119,41 +18,129 @@ interface ProofForumProps {
 export default function ProofForum({ taskId, refreshKey }: ProofForumProps) {
     const [proofs, setProofs] = useState<TaskProof[]>([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
 
     useEffect(() => {
         setLoading(true);
-        fetchTaskProofs(taskId)
-            .then(res => setProofs(res.proofs))
+        fetchTaskProofs(taskId, { page, limit: PAGE_SIZE })
+            .then(res => {
+                setProofs(res.proofs);
+                setTotalPages(res.totalPages);
+                setTotal(res.total);
+            })
             .catch(() => setProofs([]))
             .finally(() => setLoading(false));
-    }, [taskId, refreshKey]);
+    }, [taskId, refreshKey, page]);
+
+    // Reset to page 1 when new submission happens
+    useEffect(() => {
+        setPage(1);
+    }, [refreshKey]);
 
     if (loading) {
-        return (
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Submissions</h3>
-                <div className="h-20 bg-muted rounded animate-pulse" />
-            </div>
-        );
+        return <div className="h-20 bg-muted rounded animate-pulse" />;
     }
 
-    if (proofs.length === 0) {
-        return (
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Submissions</h3>
-                <p className="text-sm text-muted-foreground">No submissions yet.</p>
-            </div>
-        );
+    if (total === 0) {
+        return <p className="text-sm text-muted-foreground">No submissions yet.</p>;
     }
 
     return (
-        <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Submissions</h3>
-            <div className="space-y-4">
-                {proofs.map(p => (
-                    <ProofCard key={p.proofId} proof={p} />
-                ))}
+        <div className="space-y-3">
+            <div className="border border-border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-border bg-muted/50">
+                            <th className="text-left px-4 py-2 font-medium">#</th>
+                            <th className="text-left px-4 py-2 font-medium">Submitter</th>
+                            <th className="text-left px-4 py-2 font-medium">Date</th>
+                            <th className="text-left px-4 py-2 font-medium">Status</th>
+                            <th className="text-left px-4 py-2 font-medium">Tx</th>
+                            <th className="text-right px-4 py-2 font-medium">Proof</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {proofs.map((p, i) => {
+                            const shortAddr = `${p.submitter.slice(0, 6)}...${p.submitter.slice(-4)}`;
+                            const date = new Date(p.timestamp).toLocaleDateString();
+
+                            return (
+                                <tr key={p.proofId} className="border-b border-border last:border-b-0 hover:bg-muted/30">
+                                    <td className="px-4 py-2 text-muted-foreground">
+                                        {(page - 1) * PAGE_SIZE + i + 1}
+                                    </td>
+                                    <td className="px-4 py-2 font-mono text-xs">{shortAddr}</td>
+                                    <td className="px-4 py-2 text-muted-foreground">{date}</td>
+                                    <td className="px-4 py-2">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            p.resolved
+                                                ? "bg-green-500/10 text-green-500"
+                                                : "bg-yellow-500/10 text-yellow-500"
+                                        }`}>
+                                            {p.resolved ? "Resolved" : "Pending"}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        {p.txHash ? (
+                                            <a
+                                                href={`https://hashscan.io/testnet/transaction/${p.txHash}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-mono"
+                                            >
+                                                {p.txHash.slice(0, 8)}... <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-2 text-right">
+                                        <a
+                                            href={resolveIpfsUrl(p.proofURI)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-primary hover:underline text-xs"
+                                        >
+                                            View <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
+
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                        {total} submission{total !== 1 ? "s" : ""}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                            {page} / {totalPages}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

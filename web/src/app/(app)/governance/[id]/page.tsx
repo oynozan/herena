@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import VotingPanel from "@/components/App/Governance/Voting";
+import ProposalContent from "@/components/App/Governance/Voting/ProposalContent";
 import { fetchProposal } from "@/lib/api";
 
 const statusColors: Record<string, string> = {
@@ -33,9 +33,6 @@ export default async function ProposalDetailPage({
     }
 
     if (!proposal) return notFound();
-
-    const totalVotes = proposal.yesVotes + proposal.noVotes;
-    const yesPercent = totalVotes > 0 ? (proposal.yesVotes / totalVotes) * 100 : 0;
 
     return (
         <div className="w-full flex flex-col items-center gap-4">
@@ -67,56 +64,7 @@ export default async function ProposalDetailPage({
                 </div>
             </div>
 
-            <div className="flex gap-4 w-full">
-                <div className="w-2/3 flex flex-col gap-4 px-12 py-6">
-                    <div>
-                        <h3 className="text-lg font-semibold">Description</h3>
-                        <p className="text-sm text-muted-foreground mt-2">
-                            {proposal.description}
-                        </p>
-                    </div>
-                    {proposal.taskProof && (
-                        <div className="border border-border rounded-lg p-4 bg-background">
-                            <h4 className="font-semibold text-sm">Task Proof Details</h4>
-                            <div className="grid grid-cols-2 gap-2 mt-2">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Task</p>
-                                    <p className="text-sm font-medium">
-                                        {proposal.taskProof.taskTitle}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Volunteer</p>
-                                    <p className="text-sm font-medium font-mono">
-                                        {proposal.taskProof.volunteer}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <div>
-                        <h4 className="font-semibold text-sm mb-2">Voting Progress</h4>
-                        <div className="w-full bg-border rounded-full h-3 overflow-hidden">
-                            <div
-                                className="bg-primary h-3 rounded-full transition-all"
-                                style={{ width: `${yesPercent}%` }}
-                            />
-                        </div>
-                        <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                            <span>
-                                Yes: {proposal.yesVotes} votes ({yesPercent.toFixed(1)}%)
-                            </span>
-                            <span>
-                                No: {proposal.noVotes} votes (
-                                {(100 - yesPercent).toFixed(1)}%)
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div className="w-1/3">
-                    <VotingPanel proposal={proposal} />
-                </div>
-            </div>
+            <ProposalContent proposal={proposal} />
         </div>
     );
 }

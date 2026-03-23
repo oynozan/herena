@@ -1,5 +1,8 @@
 import { ethers } from "ethers";
 
+/** Hedera native HBAR uses 8 decimals (tinybars), not 18 */
+const HBAR_DECIMALS = 8;
+
 const VOTING_MANAGER_ABI = [
     "function vote(uint256 proposalId, bool approve) external",
 ];
@@ -18,18 +21,17 @@ const HERENA_ABI = [
     "function approve(address spender, uint256 amount) external returns (bool)",
 ];
 
-function getAddress(name: string): string {
-    const envKey = `NEXT_PUBLIC_${name}_ADDRESS`;
-    const addr = process.env[envKey];
-    if (!addr) throw new Error(`Missing ${envKey} environment variable`);
+function requireAddress(addr: string | undefined, name: string): string {
+    if (!addr) throw new Error(`Missing ${name} environment variable`);
     return addr;
 }
 
 export interface SwapParams {
-    fromToken: "HBAR" | "RN";
-    toToken: "HBAR" | "RN";
+    fromToken: "HBAR" | "HRN";
+    toToken: "HBAR" | "HRN";
     amount: number;
     slippage: number;
+    expectedOutput: number;
 }
 
 export interface SwapResult {
@@ -46,7 +48,6 @@ export interface StakeParams {
 
 export interface VoteParams {
     proposalId: string;
-    credits: number;
     direction: "yes" | "no";
 }
 
@@ -62,7 +63,7 @@ export async function castVote(
     const signer = await browserProvider.getSigner();
 
     const votingManager = new ethers.Contract(
-        getAddress("VOTING_MANAGER"),
+        requireAddress(process.env.NEXT_PUBLIC_VOTING_MANAGER_ADDRESS, "NEXT_PUBLIC_VOTING_MANAGER_ADDRESS"),
         VOTING_MANAGER_ABI,
         signer,
     );
@@ -75,7 +76,7 @@ export async function castVote(
     return receipt.hash;
 }
 
-export async function stakeRN(
+export async function stakeHRN(
     walletProvider: any,
     params: StakeParams,
 ): Promise<string> {
@@ -84,18 +85,18 @@ export async function stakeRN(
     const amount = ethers.parseEther(String(params.amount));
 
     const stakingManager = new ethers.Contract(
-        getAddress("STAKING_MANAGER"),
+        requireAddress(process.env.NEXT_PUBLIC_STAKING_MANAGER_ADDRESS, "NEXT_PUBLIC_STAKING_MANAGER_ADDRESS"),
         STAKING_MANAGER_ABI,
         signer,
     );
 
     if (params.action === "stake") {
         const herena = new ethers.Contract(
-            getAddress("HERENA"),
+            requireAddress(process.env.NEXT_PUBLIC_HERENA_ADDRESS, "NEXT_PUBLIC_HERENA_ADDRESS"),
             HERENA_ABI,
             signer,
         );
-        const approveTx = await herena.approve(getAddress("STAKING_MANAGER"), amount);
+        const approveTx = await herena.approve(requireAddress(process.env.NEXT_PUBLIC_STAKING_MANAGER_ADDRESS, "NEXT_PUBLIC_STAKING_MANAGER_ADDRESS"), amount);
         await approveTx.wait();
 
         const tx = await stakingManager.stake(amount);
@@ -114,28 +115,35 @@ export async function executeSwap(
 ): Promise<SwapResult> {
     const browserProvider = getSigner(walletProvider);
     const signer = await browserProvider.getSigner();
-    const amount = ethers.parseEther(String(params.amount));
-    const minOut = ethers.parseEther("0");
+    const minOutValue = params.expectedOutput * (1 - params.slippage / 100);
 
     const swapPool = new ethers.Contract(
-        getAddress("SWAP_POOL"),
+        requireAddress(process.env.NEXT_PUBLIC_SWAP_POOL_ADDRESS, "NEXT_PUBLIC_SWAP_POOL_ADDRESS"),
         SWAP_POOL_ABI,
         signer,
     );
 
     let tx;
     if (params.fromToken === "HBAR") {
-        tx = await swapPool.swapHBARForToken(minOut, { value: amount });
+        // Relay expects value in weibars (18 decimals); contract receives tinybars
+        const hbarAmount = ethers.parseEther(String(params.amount));
+        // minOut is in token wei (18 decimals) since output is HRN
+        const minOut = ethers.parseEther(String(Math.max(0, minOutValue).toFixed(18)));
+        tx = await swapPool.swapHBARForToken(minOut, { value: hbarAmount });
     } else {
+        // HRN token amount in wei (18 decimals)
+        const tokenAmount = ethers.parseEther(String(params.amount));
+        // minOut is in tinybars (8 decimals) since output is HBAR
+        const minOut = ethers.parseUnits(String(Math.max(0, minOutValue).toFixed(8)), HBAR_DECIMALS);
         const herena = new ethers.Contract(
-            getAddress("HERENA"),
+            requireAddress(process.env.NEXT_PUBLIC_HERENA_ADDRESS, "NEXT_PUBLIC_HERENA_ADDRESS"),
             HERENA_ABI,
             signer,
         );
-        const approveTx = await herena.approve(getAddress("SWAP_POOL"), amount);
+        const approveTx = await herena.approve(requireAddress(process.env.NEXT_PUBLIC_SWAP_POOL_ADDRESS, "NEXT_PUBLIC_SWAP_POOL_ADDRESS"), tokenAmount);
         await approveTx.wait();
 
-        tx = await swapPool.swapTokenForHBAR(amount, minOut);
+        tx = await swapPool.swapTokenForHBAR(tokenAmount, minOut);
     }
 
     const receipt = await tx.wait();
@@ -150,19 +158,20 @@ export async function executeSwap(
 export async function getAccountBalance(
     walletProvider: any,
     accountAddress: string,
-): Promise<{ hbar: number; rn: number }> {
+): Promise<{ hbar: number; hrn: number }> {
     const browserProvider = getSigner(walletProvider);
     const balance = await browserProvider.getBalance(accountAddress);
 
     const herena = new ethers.Contract(
-        getAddress("HERENA"),
+        requireAddress(process.env.NEXT_PUBLIC_HERENA_ADDRESS, "NEXT_PUBLIC_HERENA_ADDRESS"),
         ["function balanceOf(address) view returns (uint256)"],
         browserProvider,
     );
-    const rnBalance = await herena.balanceOf(accountAddress);
+    const hrnBalance = await herena.balanceOf(accountAddress);
 
     return {
+        // Hedera JSON-RPC relay returns balance in weibars (18 decimals)
         hbar: Number(ethers.formatEther(balance)),
-        rn: Number(ethers.formatEther(rnBalance)),
+        hrn: Number(ethers.formatEther(hrnBalance)),
     };
 }

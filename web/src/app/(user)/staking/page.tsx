@@ -7,8 +7,8 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { fetchStakingInfo } from "@/lib/api";
-import { stakeRN } from "@/lib/hedera";
+import { fetchStakingInfo, triggerSync } from "@/lib/api";
+import { stakeHRN, getAccountBalance } from "@/lib/hedera";
 import type { StakingInfo } from "@/lib/types";
 
 export default function StakingPage() {
@@ -18,7 +18,8 @@ export default function StakingPage() {
     const [unstakeAmount, setUnstakeAmount] = useState("");
     const [staking, setStaking] = useState(false);
     const [unstaking, setUnstaking] = useState(false);
-    const [info, setInfo] = useState<StakingInfo>({ stakedRN: 0, votingPower: 0, rewards: 0, apy: 0 });
+    const [info, setInfo] = useState<StakingInfo>({ stakedHRN: 0, votingPower: 0, rewards: 0, apy: 0 });
+    const [hrnBalance, setHrnBalance] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
 
     const loadInfo = async () => {
@@ -30,6 +31,12 @@ export default function StakingPage() {
         try {
             const data = await fetchStakingInfo(wallet);
             setInfo(data);
+            const w = wallets[0];
+            if (w) {
+                const provider = await w.getEthereumProvider();
+                const bal = await getAccountBalance(provider, wallet);
+                setHrnBalance(bal.hrn);
+            }
         } catch (err) {
             console.error("Failed to fetch staking info:", err);
         } finally {
@@ -55,9 +62,10 @@ export default function StakingPage() {
         setStaking(true);
         try {
             const provider = await wallet.getEthereumProvider();
-            await stakeRN(provider, { amount, action: "stake" });
-            toast.success(`Staked ${stakeAmount} RN`);
+            await stakeHRN(provider, { amount, action: "stake" });
+            toast.success(`Staked ${stakeAmount} HRN`);
             setStakeAmount("");
+            await triggerSync(() => Promise.resolve(true));
             loadInfo();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to stake");
@@ -80,9 +88,10 @@ export default function StakingPage() {
         setUnstaking(true);
         try {
             const provider = await wallet.getEthereumProvider();
-            await stakeRN(provider, { amount, action: "unstake" });
-            toast.success(`Unstaked ${unstakeAmount} RN`);
+            await stakeHRN(provider, { amount, action: "unstake" });
+            toast.success(`Unstaked ${unstakeAmount} HRN`);
             setUnstakeAmount("");
+            await triggerSync(() => Promise.resolve(true));
             loadInfo();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to unstake");
@@ -95,19 +104,27 @@ export default function StakingPage() {
         <div className="w-full flex flex-col items-center gap-3">
             <div className="w-full pl-2 flex items-end justify-between">
                 <div className="flex flex-col">
-                    <h2 className="text-xl">RN Staking</h2>
+                    <h2 className="text-xl">HRN Staking</h2>
                     <p className="text-second-foreground text-sm">
-                        Stake RN tokens to participate in governance and earn rewards.
+                        Stake HRN tokens to participate in governance and earn rewards.
                     </p>
                 </div>
             </div>
 
-            <div className="w-full grid grid-cols-4 gap-4">
+            <div className="w-full grid grid-cols-5 gap-4">
+                <Card>
+                    <CardHeader>
+                        <CardDescription>Wallet Balance</CardDescription>
+                        <CardTitle className="text-2xl">
+                            {loading ? "..." : hrnBalance !== null ? `${hrnBalance.toLocaleString()} HRN` : "—"}
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardDescription>Total Staked</CardDescription>
                         <CardTitle className="text-2xl">
-                            {loading ? "..." : `${info.stakedRN.toLocaleString()} RN`}
+                            {loading ? "..." : `${info.stakedHRN.toLocaleString()} HRN`}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -123,7 +140,7 @@ export default function StakingPage() {
                     <CardHeader>
                         <CardDescription>Earned Rewards</CardDescription>
                         <CardTitle className="text-2xl">
-                            {loading ? "..." : `${info.rewards} RN`}
+                            {loading ? "..." : `${info.rewards} HRN`}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -139,9 +156,9 @@ export default function StakingPage() {
 
             <div className="w-full grid grid-cols-2 gap-4 mt-2">
                 <div className="border border-border rounded-xl p-6">
-                    <h3 className="text-lg font-semibold mb-1">Stake RN</h3>
+                    <h3 className="text-lg font-semibold mb-1">Stake HRN</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                        Staking RN tokens grants you voting power in the DAO. Voting power is
+                        Staking HRN tokens grants you voting power in the DAO. Voting power is
                         calculated using a quadratic formula to ensure fair governance.
                     </p>
                     <Input
@@ -159,7 +176,7 @@ export default function StakingPage() {
                     </Button>
                 </div>
                 <div className="border border-border rounded-xl p-6">
-                    <h3 className="text-lg font-semibold mb-1">Unstake RN</h3>
+                    <h3 className="text-lg font-semibold mb-1">Unstake HRN</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                         Unstaking reduces your voting power and may have a cooldown period. Pending
                         rewards will be claimed automatically.

@@ -28,7 +28,7 @@ h5,
 h6 {
     font-family: var(--font-figtree);
     font-weight: 800;
-    margin: 0;
+    // margin: 0;
 }
 
 main {
@@ -37,6 +37,32 @@ main {
     align-items: center;
     min-height: 100dvh;
     padding-top: 32px;
+}
+
+.tiptap {
+    img {
+        border-radius: 12px;
+        margin: 16px 0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    ul,
+    ol {
+        list-style-type: disc;
+        padding-left: 20px;
+    }
+
+    hr {
+        margin: 12px 0;
+    }
+
+    h2 {
+        font-size: 24px;
+    }
+
+    h3 {
+        font-size: 20px;
+    }
 }
 
 ::selection {

@@ -11,28 +11,29 @@ export interface Task {
     maxParticipants: number;
     completedCount: number;
     createdAt: string;
+    metadataURI: string | null;
+    txHash: string | null;
 }
 
 export type TaskCategory = "trees" | "carbon" | "recycling" | "water" | "energy" | "other";
 
 export type TaskStatus = "active" | "completed" | "expired" | "pending_verification";
 
-export interface UserTask {
+export interface UserProof {
     id: string;
-    task: Task;
-    status: UserTaskStatus;
-    proofUrl?: string;
-    submittedAt?: string;
-    earnedRN: number;
-    txHash?: string;
+    task: { id: string; title: string; category: string; reward: number } | null;
+    proofURI: string;
+    submittedAt: string;
+    status: "pending" | "approved" | "rejected";
+    proposal: {
+        id: string;
+        yesVotes: number;
+        noVotes: number;
+        totalVoters: number;
+        votingEnds: string;
+    } | null;
+    earnedHRN: number;
 }
-
-export type UserTaskStatus =
-    | "joined"
-    | "proof_submitted"
-    | "pending_verification"
-    | "approved"
-    | "rejected";
 
 export interface Proposal {
     id: string;
@@ -49,6 +50,7 @@ export interface Proposal {
         volunteer: string;
         proofUrl: string;
     };
+    txHash: string | null;
 }
 
 export type ProposalType = "task_verification" | "parameter_change";
@@ -56,7 +58,7 @@ export type ProposalType = "task_verification" | "parameter_change";
 export type ProposalStatus = "active" | "passed" | "rejected" | "expired";
 
 export interface StakingInfo {
-    stakedRN: number;
+    stakedHRN: number;
     votingPower: number;
     rewards: number;
     apy: number;
@@ -68,4 +70,5 @@ export interface TaskProof {
     proofURI: string;
     timestamp: string;
     resolved: boolean;
+    txHash: string | null;
 }

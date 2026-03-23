@@ -16,9 +16,10 @@ export default function UserLayout({
                 </div>
                 <Navbar
                     links={[
-                        { label: "My Tasks", href: "/my-tasks" },
+                        { label: "My Proofs", href: "/my-proofs" },
                         { label: "Staking", href: "/staking" },
                         { label: "My Votes", href: "/votes" },
+                        { label: "Badges", href: "/badges" },
                     ]}
                 />
                 <div id="page">{children}</div>

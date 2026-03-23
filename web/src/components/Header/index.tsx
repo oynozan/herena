@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { usePathname } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 
 import Logo from "../Logo";
@@ -20,6 +21,7 @@ import { ExternalLink, Moon, Sun } from "lucide-react";
 import "./header.scss";
 
 export default function Header() {
+    const pathname = usePathname();
     const { theme, setTheme } = useTheme();
 
     const { ready } = useWallets();
@@ -40,11 +42,11 @@ export default function Header() {
                     </Link>
                 </div>
                 <div className="flex gap-5">
-                    <Link href="/">Tasks</Link>
-                    <Link href="/governance">Governance</Link>
-                    <Link href="/swap">Swap</Link>
-                    <Link href="/whitepaper">Whitepaper</Link>
-                    <Link href="/my-tasks">My Impact</Link>
+                    <Link className={`${pathname === "/" ? "active" : ""}`} href="/">Home</Link>
+                    <Link className={`${pathname === "/dashboard" ? "active" : ""}`} href="/dashboard">Dashboard</Link>
+                    <Link className={`${pathname === "/leaderboard" ? "active" : ""}`} href="/leaderboard">Leaderboard</Link>
+                    <Link className={`${pathname === "/whitepaper" ? "active" : ""}`} href="/whitepaper">Whitepaper</Link>
+                    <Link className={`${pathname === "/my-proofs" ? "active" : ""}`} href="/my-proofs">My Impact</Link>
                 </div>
                 <div className="flex-1 flex justify-end items-center gap-2">
                     <Button
@@ -69,13 +71,16 @@ export default function Header() {
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem asChild className="cursor-pointer font-medium">
-                                    <Link href="/my-tasks">My Tasks</Link>
+                                    <Link href="/my-proofs">My Proofs</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild className="cursor-pointer font-medium">
                                     <Link href="/staking">Staking</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild className="cursor-pointer font-medium">
                                     <Link href="/votes">My Votes</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild className="cursor-pointer font-medium">
+                                    <Link href="/badges">Badges</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel className="text-second-foreground">

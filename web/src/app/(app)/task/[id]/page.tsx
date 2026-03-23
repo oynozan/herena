@@ -23,20 +23,20 @@ export default async function TaskDetailPage({
     if (!task) return notFound();
 
     return (
-        <div className="w-full flex flex-col items-center gap-4">
+        <div className="w-full flex flex-col items-center gap-4 px-4">
             <div className="w-full flex items-center justify-between">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between w-full gap-4">
+                    <div className="flex flex-col">
+                        <h2 className="text-2xl">{task.title}</h2>
+                        <p className="text-second-foreground text-sm">
+                            {task.reward} HRN reward &middot; Due {task.deadline}
+                        </p>
+                    </div>
                     <Button variant="outline" size="icon" asChild>
                         <Link href="/">
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <div className="flex flex-col">
-                        <h2 className="text-2xl">{task.title}</h2>
-                        <p className="text-second-foreground text-sm">
-                            {task.reward} RN reward &middot; Due {task.deadline}
-                        </p>
-                    </div>
                 </div>
             </div>
             <TaskDetails task={task} />

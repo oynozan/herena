@@ -42,7 +42,7 @@ export default function TaskWrapper({ task }: { task: Task }) {
                                 {categoryLabels[task.category] || task.category}
                             </span>
                             <span className="text-sm text-muted-foreground">
-                                {task.participants}/{task.maxParticipants} participants
+                                {task.participants} / {task.maxParticipants} participants
                             </span>
                         </div>
                     </div>
@@ -59,7 +59,7 @@ export default function TaskWrapper({ task }: { task: Task }) {
                         </div>
                     </div>
                     <div className="px-6 border-l border-border flex flex-col items-center justify-center w-40">
-                        <p className="text-primary font-ibm-plex-mono text-xl">{task.reward} RN</p>
+                        <p className="text-primary font-ibm-plex-mono text-xl">{task.reward} HRN</p>
                     </div>
                 </div>
             </Link>

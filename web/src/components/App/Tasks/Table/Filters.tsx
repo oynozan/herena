@@ -68,7 +68,7 @@ export function TaskFilters({ onApply }: TaskFiltersProps) {
                 <Input
                     type="number"
                     className="w-50"
-                    placeholder="Min reward (RN)"
+                    placeholder="Min reward (HRN)"
                     value={minReward}
                     onChange={e => setMinReward(e.target.value)}
                     min="0"
@@ -77,7 +77,7 @@ export function TaskFilters({ onApply }: TaskFiltersProps) {
                 <Input
                     type="number"
                     className="w-50"
-                    placeholder="Max reward (RN)"
+                    placeholder="Max reward (HRN)"
                     value={maxReward}
                     onChange={e => setMaxReward(e.target.value)}
                     min="0"

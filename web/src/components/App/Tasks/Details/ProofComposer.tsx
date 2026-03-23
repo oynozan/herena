@@ -6,21 +6,45 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
-import { Button } from "@/components/ui/button";
-import { uploadProofImage, uploadProofArtifact } from "@/lib/api";
-import { submitTaskProofWithPrivy } from "@/lib/proofContract";
 import type { Task } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { submitTaskProofWithPrivy } from "@/lib/proofContract";
+import { uploadProofImage, uploadProofArtifact, triggerSync } from "@/lib/api";
+import {
+    ImageIcon,
+    Bold,
+    Italic,
+    List,
+    ListOrdered,
+    Heading2,
+    Quote,
+    Undo,
+    Redo,
+} from "lucide-react";
 
 const extensions = [
     StarterKit,
-    Image,
+    Image.configure({
+        resize: {
+            enabled: true,
+            directions: ["top", "bottom", "left", "right"],
+            minWidth: 50,
+            minHeight: 50,
+            alwaysPreserveAspectRatio: true,
+        },
+    }),
     Placeholder.configure({ placeholder: "Write your proof and add images..." }),
 ];
 
 interface ProofComposerProps {
     task: Task;
-    wallet: { address: string; getEthereumProvider: () => Promise<unknown>; switchChain?: (chainId: number) => Promise<void> };
+    wallet: {
+        address: string;
+        getEthereumProvider: () => Promise<unknown>;
+        switchChain?: (chainId: number) => Promise<void>;
+    };
     onSuccess: () => void;
 }
 
@@ -35,19 +59,18 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: "prose prose-sm dark:prose-invert max-w-none min-h-[120px] px-3 py-2 focus:outline-none",
+                class: "prose prose-sm dark:prose-invert max-w-none min-h-[240px] px-3 py-2 focus:outline-none",
             },
         },
     });
 
-    const handleImageUpload = useCallback(async () => {
+    const handleImageUpload = useCallback(() => {
         fileInputRef.current?.click();
     }, []);
 
     const handleFileChange = useCallback(
         async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
-            console.log("[ProofComposer] handleFileChange: file", file?.name);
             if (!file || !file.type.startsWith("image/")) {
                 toast.error("Please select an image file");
                 return;
@@ -55,15 +78,11 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
             if (!editor) return;
             setUploading(true);
             try {
-                console.log("[ProofComposer] handleFileChange: calling uploadProofImage");
                 const { cid } = await uploadProofImage(file);
-                console.log("[ProofComposer] handleFileChange: cid", cid);
                 const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY;
-                const src = gateway ? `${gateway.replace(/\/$/, "")}/ipfs/${cid}` : `ipfs://${cid}`;
-                console.log("[ProofComposer] handleFileChange: image src", src);
+                const src = gateway ? `${gateway.replace(/\/$/, "")}/${cid}` : `ipfs://${cid}`;
                 editor.chain().focus().setImage({ src }).run();
             } catch (err) {
-                console.error("[ProofComposer] handleFileChange: error", err);
                 toast.error(err instanceof Error ? err.message : "Failed to upload image");
             } finally {
                 setUploading(false);
@@ -74,32 +93,32 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
     );
 
     const handleSubmit = useCallback(async () => {
-        if (!editor || !wallet) {
-            console.log("[ProofComposer] handleSubmit: missing editor or wallet", !!editor, !!wallet);
-            return;
-        }
+        if (!editor || !wallet) return;
+
         const json = editor.getJSON();
         if (!json.content?.length) {
             toast.error("Please add some content to your proof");
             return;
         }
-        console.log("[ProofComposer] handleSubmit: starting", { taskId: task.id });
+
         setSubmitting(true);
+
         try {
-            console.log("[ProofComposer] handleSubmit: calling uploadProofArtifact");
             const { uri } = await uploadProofArtifact({ v: 1, tiptap: json });
-            console.log("[ProofComposer] handleSubmit: uri", uri);
-            console.log("[ProofComposer] handleSubmit: calling submitTaskProofWithPrivy");
+
             await submitTaskProofWithPrivy(wallet, {
                 taskId: task.id,
                 proofUrl: uri,
             });
-            console.log("[ProofComposer] handleSubmit: success");
+
             toast.success("Proof submitted for verification!");
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             editor.commands.clearContent();
+
+            // Trigger server event sync so the new proof appears immediately
+            await triggerSync(() => Promise.resolve(true));
             onSuccess();
         } catch (err) {
-            console.error("[ProofComposer] handleSubmit: error", err);
             toast.error(err instanceof Error ? err.message : "Failed to submit proof");
         } finally {
             setSubmitting(false);
@@ -110,7 +129,62 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
 
     return (
         <div className="border border-border rounded-lg bg-background">
-            <div className="flex gap-1 p-2 border-b border-border">
+            <div className="flex flex-wrap gap-1 p-2 border-b border-border">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleBold().run()}
+                    className={editor.isActive("bold") ? "bg-muted" : ""}
+                >
+                    <Bold className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
+                    className={editor.isActive("italic") ? "bg-muted" : ""}
+                >
+                    <Italic className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                    className={editor.isActive("heading", { level: 2 }) ? "bg-muted" : ""}
+                >
+                    <Heading2 className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleBulletList().run()}
+                    className={editor.isActive("bulletList") ? "bg-muted" : ""}
+                >
+                    <List className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                    className={editor.isActive("orderedList") ? "bg-muted" : ""}
+                >
+                    <ListOrdered className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                    className={editor.isActive("blockquote") ? "bg-muted" : ""}
+                >
+                    <Quote className="w-4 h-4" />
+                </Button>
+                <div className="w-px bg-border mx-1" />
                 <Button
                     type="button"
                     variant="ghost"
@@ -118,7 +192,7 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
                     onClick={handleImageUpload}
                     disabled={uploading}
                 >
-                    {uploading ? "Uploading..." : "Add image"}
+                    <ImageIcon className="w-4 h-4" />
                 </Button>
                 <input
                     ref={fileInputRef}
@@ -127,10 +201,34 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
                     className="hidden"
                     onChange={handleFileChange}
                 />
+                <div className="w-px bg-border mx-1" />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().undo().run()}
+                    disabled={!editor.can().undo()}
+                >
+                    <Undo className="w-4 h-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => editor.chain().focus().redo().run()}
+                    disabled={!editor.can().redo()}
+                >
+                    <Redo className="w-4 h-4" />
+                </Button>
             </div>
             <EditorContent editor={editor} />
+            {uploading && (
+                <p className="text-xs text-muted-foreground px-3 py-1">
+                    Uploading image to IPFS...
+                </p>
+            )}
             <div className="p-2 border-t border-border">
-                <Button onClick={handleSubmit} disabled={submitting}>
+                <Button onClick={handleSubmit} disabled={submitting || uploading}>
                     {submitting ? "Submitting..." : "Submit Proof"}
                 </Button>
             </div>

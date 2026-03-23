@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { ArrowDown, ChevronDown } from "lucide-react";
@@ -13,10 +13,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { fetchPoolInfo } from "@/lib/api";
-import { executeSwap } from "@/lib/hedera";
+import { fetchPoolInfo, triggerSync } from "@/lib/api";
+import { executeSwap, getAccountBalance } from "@/lib/hedera";
 
-type TokenKey = "HBAR" | "RN";
+type TokenKey = "HBAR" | "HRN";
 
 interface TokenInfo {
     key: TokenKey;
@@ -30,16 +30,37 @@ export default function SwapPage() {
     const { wallets } = useWallets();
     const [fromAmount, setFromAmount] = useState("");
     const [sellToken, setSellToken] = useState<TokenKey>("HBAR");
-    const [buyToken, setBuyToken] = useState<TokenKey>("RN");
+    const [buyToken, setBuyToken] = useState<TokenKey>("HRN");
     const [rate, setRate] = useState(0);
+    const [tokenReserve, setTokenReserve] = useState(0);
     const [fee, setFee] = useState(0.3);
     const [loading, setLoading] = useState(true);
     const [swapping, setSwapping] = useState(false);
+    const [hbarBalance, setHbarBalance] = useState(0);
+    const [hrnBalance, setHrnBalance] = useState(0);
 
-    const [tokenList] = useState<TokenInfo[]>([
-        { key: "HBAR", name: "HBAR", logo: "/hbar.svg", balance: 0, usd: 0.28 },
-        { key: "RN", name: "RN", logo: "/logo.png", balance: 0, usd: 0.0112 },
-    ]);
+    const tokenList: TokenInfo[] = [
+        { key: "HBAR", name: "HBAR", logo: "/hbar.svg", balance: hbarBalance, usd: 0.28 },
+        { key: "HRN", name: "HRN", logo: "/logo.png", balance: hrnBalance, usd: 0.0112 },
+    ];
+
+    const wallet = wallets[0];
+
+    const refreshBalances = useCallback(async () => {
+        if (!wallet) return;
+        try {
+            const provider = await wallet.getEthereumProvider();
+            const bal = await getAccountBalance(provider, wallet.address);
+            setHbarBalance(bal.hbar);
+            setHrnBalance(bal.hrn);
+        } catch (err) {
+            console.error("Failed to fetch balances:", err);
+        }
+    }, [wallet]);
+
+    useEffect(() => {
+        refreshBalances();
+    }, [refreshBalances]);
 
     useEffect(() => {
         async function load() {
@@ -47,6 +68,7 @@ export default function SwapPage() {
                 const pool = await fetchPoolInfo();
                 if (pool.rate > 0) setRate(pool.rate);
                 if (pool.fee > 0) setFee(pool.fee);
+                if (pool.tokenReserve > 0) setTokenReserve(pool.tokenReserve);
             } catch (err) {
                 console.error("Failed to fetch pool info:", err);
             } finally {
@@ -62,12 +84,24 @@ export default function SwapPage() {
     const to = tokenMap[buyToken];
 
     const inputAmount = Number(fromAmount) || 0;
-    const outputAmount = rate > 0
-        ? (sellToken === "HBAR" ? inputAmount * rate : inputAmount / rate)
-        : 0;
-    const feeAmount = outputAmount * (fee / 100);
-    const receivedAmount = outputAmount - feeAmount;
 
+    // Use the AMM constant-product formula (matching the contract) instead of spot rate
+    const feeRate = fee / 100; // 0.3% = 0.003
+    let outputAmount = 0;
+    if (rate > 0 && inputAmount > 0) {
+        const hbarReserve = tokenReserve / rate; // derive from rate
+        const amountInWithFee = inputAmount * (1 - feeRate);
+        if (sellToken === "HBAR") {
+            outputAmount = (amountInWithFee * tokenReserve) / (hbarReserve + amountInWithFee);
+        } else {
+            outputAmount = (amountInWithFee * hbarReserve) / (tokenReserve + amountInWithFee);
+        }
+    }
+    const receivedAmount = outputAmount;
+
+    const feeAmount = inputAmount > 0
+        ? (sellToken === "HBAR" ? inputAmount * rate : inputAmount / rate) - receivedAmount
+        : 0;
     const fromUsd = inputAmount * from.usd;
     const toUsd = receivedAmount * to.usd;
 
@@ -94,7 +128,6 @@ export default function SwapPage() {
     };
 
     const handleSwap = async () => {
-        const wallet = wallets[0];
         if (!wallet) {
             toast.error("Please connect your wallet first");
             return;
@@ -107,13 +140,31 @@ export default function SwapPage() {
                 toToken: buyToken,
                 amount: inputAmount,
                 slippage: 1,
+                expectedOutput: receivedAmount,
             });
             toast.success(
                 `Swapped ${inputAmount} ${from.name} for ${receivedAmount.toFixed(4)} ${to.name}`,
             );
             setFromAmount("");
+            await triggerSync(() => Promise.resolve(true));
+            await refreshBalances();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Swap failed");
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes("InsufficientLiquidity") || msg.includes("0xbb55fd27")) {
+                toast.error("Not enough liquidity in the pool for this swap");
+            } else if (msg.includes("ZeroAmount") || msg.includes("0x1f2a2005")) {
+                toast.error("Amount must be greater than zero");
+            } else if (msg.includes("SlippageTooHigh") || msg.includes("0x850c6f76")) {
+                toast.error("Price moved too much — try increasing slippage tolerance");
+            } else if (msg.includes("insufficient funds") || msg.includes("INSUFFICIENT_PAYER_BALANCE")) {
+                toast.error("Insufficient HBAR balance for this swap");
+            } else if (msg.includes("transfer failed")) {
+                toast.error("Token transfer failed — check your HRN balance");
+            } else if (msg.includes("user rejected") || msg.includes("User denied")) {
+                toast.error("Transaction rejected");
+            } else {
+                toast.error("Swap failed — check your balance and try a smaller amount");
+            }
         } finally {
             setSwapping(false);
         }
@@ -124,7 +175,7 @@ export default function SwapPage() {
             <div className="w-full flex items-end justify-center mt-16">
                 <div className="flex flex-col items-center">
                     <h2 className="text-5xl">
-                        Swap <span className="text-primary">RN</span> token{" "}
+                        Swap <span className="text-primary">HRN</span> token{" "}
                         <span className="text-secondary">right now</span>
                     </h2>
                 </div>
@@ -289,7 +340,7 @@ export default function SwapPage() {
                             <div className="text-sm text-muted-foreground space-y-1 px-2 pt-2">
                                 <div className="flex justify-between">
                                     <span>Rate</span>
-                                    <span>1 HBAR = {rate.toFixed(2)} RN</span>
+                                    <span>1 HBAR = {rate.toFixed(2)} HRN</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Fee ({fee}%)</span>

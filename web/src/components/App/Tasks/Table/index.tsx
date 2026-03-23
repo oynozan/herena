@@ -55,7 +55,7 @@ export default function TasksTable() {
         <div className="w-full flex flex-col gap-4">
             <TaskFilters onApply={handleFiltersApply} />
 
-            <div className="w-full pb-4 border border-border rounded-xl flex flex-col gap-6">
+            <div className="w-full border border-border rounded-xl flex flex-col gap-6">
                 {loading ? (
                     <p className="text-second-foreground text-center text-sm py-8">Loading tasks...</p>
                 ) : tasks.length === 0 ? (
