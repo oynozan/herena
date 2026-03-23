@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
  * Optional: POST /agentic/tasks/:id/proof — task must exist in MongoDB.
- * Env: HERENA_AGENTIC_BASE_URL, TEST_TASK_ID, TEST_SUBMITTER, TEST_PROOF_URI
+ * Env: HERENA_AGENTIC_BASE_URL, TEST_TASK_ID, TEST_SUBMITTER, TEST_PROOF_URI (OpenClaw/.env)
  */
+
+import "./load-env.mjs";
 
 const base = (process.env.HERENA_AGENTIC_BASE_URL || "").replace(/\/$/, "");
 const taskId = process.env.TEST_TASK_ID;

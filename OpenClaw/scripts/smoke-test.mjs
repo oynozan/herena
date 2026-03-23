@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Herena Agentic API smoke test — validates HTTP surface for OpenClaw-style agents.
- * RunPod or local: set HERENA_AGENTIC_BASE_URL, then `npm test`
+ * Loads vars from OpenClaw/.env (copy from .env.example). Run: npm test
  */
+import "./load-env.mjs";
 
 const base = (process.env.HERENA_AGENTIC_BASE_URL || "").replace(/\/$/, "");
 

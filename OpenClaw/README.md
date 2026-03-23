@@ -28,9 +28,10 @@ Terminal 2 — smoke test:
 
 ```bash
 cd OpenClaw
-cp .env.example .env    # optional; or export env vars directly
+cp .env.example .env
+# Edit .env — scripts auto-load it (no manual export)
 
-export HERENA_AGENTIC_BASE_URL=http://localhost:5000
+npm install
 npm test
 ```
 
@@ -103,12 +104,10 @@ npm test
 
 ## 4) Optional: MongoDB-only proof (not on-chain)
 
+Add the variables to `OpenClaw/.env`, then:
+
 ```bash
-export HERENA_AGENTIC_BASE_URL=https://...
-export TEST_TASK_ID=1
-export TEST_SUBMITTER=0x0000000000000000000000000000000000000001
-export TEST_PROOF_URI=https://example.com/dummy-proof.json
-npm run post-proof
+cd OpenClaw && npm install && npm run post-proof
 ```
 
 ---
@@ -117,24 +116,17 @@ npm run post-proof
 
 Flow: **`POST /agentic/chain/tx/prepare-submit-proof`** → agent signs with **`ethers`** → **`POST /agentic/chain/tx/broadcast`** → **`GET /agentic/chain/tx/:hash`**.
 
+Set `HERENA_AGENTIC_BASE_URL`, `HEDERA_RPC_URL`, `AGENT_PRIVATE_KEY`, `E2E_TASK_ID`, `E2E_PROOF_URI` in `OpenClaw/.env`, then:
+
 ```bash
-cd OpenClaw
-npm install
-
-export HERENA_AGENTIC_BASE_URL=http://localhost:5000
-export HEDERA_RPC_URL=https://testnet.hashio.io/api
-export AGENT_PRIVATE_KEY=0x...   # testnet key that has NOT submitted proof for this task
-export E2E_TASK_ID=0             # on-chain task id (TaskManager)
-export E2E_PROOF_URI=ipfs://...  # non-empty URI
-
-npm run test:chain
+cd OpenClaw && npm install && npm run test:chain
 ```
 
 - `HEDERA_RPC_URL` must be the **same network** as Herena `server/.env` (`chainId` must match).
 - The wallet must not have called `submitProof` for that task yet (`AlreadySubmittedForTask`).
 - To only print the signed tx: `E2E_DRY_RUN=1 npm run test:chain`
 
-On RunPod: clone → `cd OpenClaw && npm install` → set env vars → `npm run test:chain`.
+On RunPod: clone → `cd OpenClaw && npm install` → create `.env` (or inject env into the process) → `npm run test:chain`.
 
 ---
 
@@ -159,6 +151,7 @@ On RunPod: clone → `cd OpenClaw && npm install` → set env vars → `npm run 
 | `scripts/e2e-chain-proof.mjs` | prepare → sign → broadcast → receipt |
 | `scripts/post-proof-example.mjs` | MongoDB mirror proof only |
 | `Dockerfile` | RunPod smoke (no private key baked in) |
+| `scripts/load-env.mjs` | Loads `OpenClaw/.env` for all scripts |
 | `.env.example` | Env template |
 
 - Agentic routes: `server/routes/public/agentic.ts`

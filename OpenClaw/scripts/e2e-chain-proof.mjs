@@ -12,6 +12,7 @@
  * E2E_DRY_RUN=1 → only prepare + print signed tx, no broadcast
  */
 
+import "./load-env.mjs";
 import { ethers } from "ethers";
 
 const base = (process.env.HERENA_AGENTIC_BASE_URL || "").replace(/\/$/, "");
