@@ -7,13 +7,17 @@ settings:
 importers:
 
   .:
+    dependencies:
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
     devDependencies:
       '@nomicfoundation/hardhat-ignition':
         specifier: ^3.0.9
         version: 3.0.9(@nomicfoundation/hardhat-verify@3.0.12(hardhat@3.1.12))(hardhat@3.1.12)
       '@nomicfoundation/hardhat-toolbox-viem':
         specifier: ^5.0.3
-        version: 5.0.3(9342c4d7662986e2669dfe59c1b775aa)
+        version: 5.0.3(pzipozrbb7hrta5e5ofrq45tba)
       '@openzeppelin/contracts':
         specifier: ^5.4.0
         version: 5.6.1
@@ -588,6 +592,10 @@ packages:
   diff-sequences@29.6.3:
     resolution: {integrity: sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+
+  dotenv@17.3.1:
+    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+    engines: {node: '>=12'}
 
   elliptic@6.6.1:
     resolution: {integrity: sha512-RaddvvMatK2LJHqFJ+YA4WysVN5Ita9E35botqIYspQ4TkRAlCicdzKOjlyv/1Za5RyTNn7di//eEV0uTAfe3g==}
@@ -1230,7 +1238,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@nomicfoundation/hardhat-toolbox-viem@5.0.3(9342c4d7662986e2669dfe59c1b775aa)':
+  '@nomicfoundation/hardhat-toolbox-viem@5.0.3(pzipozrbb7hrta5e5ofrq45tba)':
     dependencies:
       '@nomicfoundation/hardhat-ignition': 3.0.9(@nomicfoundation/hardhat-verify@3.0.12(hardhat@3.1.12))(hardhat@3.1.12)
       '@nomicfoundation/hardhat-ignition-viem': 3.0.9(@nomicfoundation/hardhat-ignition@3.0.9(@nomicfoundation/hardhat-verify@3.0.12(hardhat@3.1.12))(hardhat@3.1.12))(@nomicfoundation/hardhat-verify@3.0.12(hardhat@3.1.12))(@nomicfoundation/hardhat-viem@3.0.4(hardhat@3.1.12)(viem@2.47.2(typescript@5.8.3)(zod@3.25.76)))(@nomicfoundation/ignition-core@3.0.9)(hardhat@3.1.12)(viem@2.47.2(typescript@5.8.3)(zod@3.25.76))
@@ -1446,6 +1454,8 @@ snapshots:
       ms: 2.1.3
 
   diff-sequences@29.6.3: {}
+
+  dotenv@17.3.1: {}
 
   elliptic@6.6.1:
     dependencies:

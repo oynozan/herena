@@ -1,35 +1,35 @@
 {
   "296": {
     "Herena": {
-      "address": "0x16ca2e4dae67bcea7b55ebb026235c72f80d8975",
-      "deployTxHash": "0x22e0fd9de338494ef9fe426c692ade388103f1d2a3a94a0cd36cb4a0e83520fc"
+      "address": "0x347be399b322a27828a6ab7ca658696cd304f1c5",
+      "deployTxHash": "0x51fd60114e04c665a5e30c11443f05310e3fc1a8db9b56df6e03d526dc8c9edc"
     },
     "StakingManager": {
-      "address": "0x1f90135c0783e9a2e92e1acb5063ea1b42c22dbb",
-      "deployTxHash": "0x9f9c8f5680c550eb19445ad54040fbe748e9dc315a1afd003b28cd65ab7f6495"
+      "address": "0x83a524fead5c07ea44a33b6b16cc6476ca259319",
+      "deployTxHash": "0x6e7bc67535995705f369e0d64fae63d7cf7bb672070820228b1d45d9c1c7db91"
     },
     "TaskManager": {
-      "address": "0xd3db10a78cca842ef3c3893051c8cada306f976f",
-      "deployTxHash": "0xa1a45d00981c8ffb48cec49edfb50178807484f3bf6e12cac5b9515d53347ce7"
+      "address": "0xd91832692c603fb010e6b61eee7039e31fa6ad54",
+      "deployTxHash": "0x24d668fcc495f1eb60923178c75d4c54aece92c0d1265ddd48ede3d7b2cac913"
     },
     "ProofManager": {
-      "address": "0x78f23585cd4855374c1eb6a32e9d6b21f8ecb44d",
-      "deployTxHash": "0x3fe52f9c6dc02424920b6a4e137c7bdac1b8c0728fa37272234ec801b5b19d7e"
+      "address": "0x873c61e3116362ff23ea525a496a7c6b5b9cd87a",
+      "deployTxHash": "0xbe76ca7c6d97aeca44d449ffad324e1322830ea9ef5f14655062ecb7d2a9e852"
     },
     "VotingManager": {
-      "address": "0xbaca690cdc9d6d6e151177916f5594a2424faa30",
-      "deployTxHash": "0x96d0601ee535a6f191bc71a8914de7f80d0b340f67991e1d28e4e7621c65c96e"
+      "address": "0x76a667321a62bf7220fe79b83c2a2c105dde4ae7",
+      "deployTxHash": "0xd49f1306c94b59c5bf06073e8b411c434595726ff8592b55532ee2c9ce003525"
     },
     "SwapPool": {
-      "address": "0x1ce32951c11f82480302e444610a1c9bf84fef56",
-      "deployTxHash": "0x22c8fb43932439f0c643554ae499435b1b42dc7c84256ecca3127ff52c96ccbb"
+      "address": "0xb6ee9aded473e5c354d81f6989175acf89c69668",
+      "deployTxHash": "0xc6965a6ca615fa98d7e7c9f135bc7159d036aa7390deb29f10e61efb69861957"
     },
     "setupTxHashes": [
-      "0x2a7f0f7a92ba319bc9474fb7237b9c57a1c29d862c2b7de1d334c29ea1a9ede6",
-      "0xb4d71264e4b412128aa61afb8cf377f4d03c71953b9f1f750b761bf7a5c82423",
-      "0x5bebab0b00662a5cfec284f9b3b82cf5005fb83e89c381a90b1d19ebe5903593",
-      "0x6042fe3b92db6c2cbc5c44702740b53175ce2980d432dfe70679b9a599589472",
-      "0x3a5469ee58527daabd41889f60f139070b60b6b6fb928eb370969c06d19fbdd5"
+      "0x5de1782d5e5db79f3e4ede0d3a160f8673a80983f71718c66ebd70660436517b",
+      "0x9acac03079858ec6243d625b9532c12935c2a22f26fd7a4c63a63be5cd59a493",
+      "0xbed7f95a7a6270e0ceb14a0f44bab40d1bdc1f6efb52cb3e52084d3ca9d18729",
+      "0x2cc190191d4faaa71d7ae7fc495e21b100fd199d7d21f15c37074454f6e6f0e9",
+      "0xab679f236e6f007b7487a64f1f292070c077a473ac97a5ab412b972ce9f2c4bd"
     ]
   }
 }

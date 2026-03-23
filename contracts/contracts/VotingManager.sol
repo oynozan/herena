@@ -33,6 +33,12 @@ contract VotingManager is Ownable, ReentrancyGuard {
     /// @dev Emitted when a proposal is resolved.
     event ProposalResolved(uint256 indexed id, bool approved);
 
+    /// @dev Emitted when voting duration is changed by the owner.
+    event VotingDurationUpdated(uint256 newDuration);
+
+    /// @dev Emitted when a proposal is deleted by the owner.
+    event ProposalDeleted(uint256 indexed id);
+
     /// @dev Thrown when an address parameter is the zero address.
     error ZeroAddress();
 
@@ -235,6 +241,28 @@ contract VotingManager is Ownable, ReentrancyGuard {
         }
 
         emit ProposalResolved(proposalId, p.approved);
+    }
+
+    /**
+     * @dev Updates the voting duration. Only callable by the owner.
+     * @param _newDuration New voting duration in seconds.
+     */
+    function setVotingDuration(uint256 _newDuration) external onlyOwner {
+        require(_newDuration > 0, "Duration must be > 0");
+        votingDuration = _newDuration;
+        emit VotingDurationUpdated(_newDuration);
+    }
+
+    /**
+     * @dev Deletes an unresolved proposal. Only callable by the owner.
+     * @param proposalId Id of the proposal to delete.
+     */
+    function deleteProposal(uint256 proposalId) external onlyOwner {
+        Proposal storage p = _proposals[proposalId];
+        if (p.id != proposalId) revert InvalidProposal();
+        if (p.resolved) revert ProposalAlreadyResolved();
+        delete _proposals[proposalId];
+        emit ProposalDeleted(proposalId);
     }
 }
 

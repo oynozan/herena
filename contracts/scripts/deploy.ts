@@ -27,26 +27,38 @@ async function main() {
   const txLog: Hash[] = [];
 
   async function deploy(contractName: string, args: unknown[] = []) {
-    const artifact = await artifacts.readArtifact(contractName);
-    const hash = await deployer.deployContract({
-      abi: artifact.abi,
-      bytecode: artifact.bytecode as `0x${string}`,
-      args,
-    });
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    const addr = receipt.contractAddress!;
-    console.log(`[deploy] ${contractName} -> ${addr} (tx: ${hash})`);
+    console.log(`[deploy] Deploying ${contractName}...`);
+    try {
+      const artifact = await artifacts.readArtifact(contractName);
+      const hash = await deployer.deployContract({
+        abi: artifact.abi,
+        bytecode: artifact.bytecode as `0x${string}`,
+        args,
+      });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const addr = receipt.contractAddress!;
+      console.log(`[deploy] ${contractName} -> ${addr} (tx: ${hash})`);
 
-    const contract = await viem.getContractAt(contractName, addr);
-    return { contract, address: addr, hash };
+      const contract = await viem.getContractAt(contractName, addr);
+      return { contract, address: addr, hash };
+    } catch (err) {
+      console.error(`[deploy] FAILED deploying ${contractName}:`, err);
+      throw err;
+    }
   }
 
   async function logWrite(label: string, hashPromise: Promise<Hash>) {
-    const hash = await hashPromise;
-    await publicClient.waitForTransactionReceipt({ hash });
-    console.log(`[setup]  ${label} (tx: ${hash})`);
-    txLog.push(hash);
-    return hash;
+    console.log(`[setup]  Running ${label}...`);
+    try {
+      const hash = await hashPromise;
+      await publicClient.waitForTransactionReceipt({ hash });
+      console.log(`[setup]  ${label} OK (tx: ${hash})`);
+      txLog.push(hash);
+      return hash;
+    } catch (err) {
+      console.error(`[setup]  FAILED ${label}:`, err);
+      throw err;
+    }
   }
 
   const initialMint = parseEther("1000000");

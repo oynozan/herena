@@ -1,8 +1,11 @@
-import { readFileSync } from "node:fs";
+import dotenv from "dotenv";
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 import { artifacts, network } from "hardhat";
 import { type Address, parseEther } from "viem";
+
+dotenv.config();
 
 async function main() {
   const deploymentsPath = join(process.cwd(), "deployments.json");
@@ -26,11 +29,47 @@ async function main() {
   const taskManager = await viem.getContractAt("TaskManager", taskManagerAddr);
 
   // ── Task parameters ──────────────────────────────────────────────
-  const description = "Plant a tree";
-  const rewardPerCompletion = parseEther("100");
-  const maxCompletions = 1n;
-  const deadline = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60); // 1 week
-  const metadataURI = "ipfs://QmExample";
+  const description = "Water 10 trees in your community park";
+  const rewardPerCompletion = parseEther("200");
+  const maxCompletions = 100n;
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 5 * 60); // 5 minutes
+
+  // Write task metadata as markdown here. It will be uploaded to IPFS.
+  const TASK_METADATA = `
+Water 10 trees in your community park.
+
+**Requirements:**
+- Plant at least 10 trees
+- Take before/after photos of the planting site
+
+**Accepted proof types:**
+- Photos with timestamps
+  `.trim();
+
+  // Upload metadata to IPFS via the protected server route
+  const SERVER_URL = process.env.SERVER_URL || "http://localhost:3001";
+  const SERVER_TOKEN = process.env.SERVER_TOKEN;
+  if (!SERVER_TOKEN) {
+    throw new Error("SERVER_TOKEN env var required (ES256 JWT for protected routes)");
+  }
+
+  console.log("Uploading task metadata to IPFS...");
+  const ipfsRes = await fetch(`${SERVER_URL}/protected/ipfs/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SERVER_TOKEN}`,
+    },
+    body: JSON.stringify({ content: TASK_METADATA }),
+  });
+
+  if (!ipfsRes.ok) {
+    const err = await ipfsRes.text();
+    throw new Error(`IPFS upload failed: ${ipfsRes.status} ${err}`);
+  }
+
+  const { uri: metadataURI } = (await ipfsRes.json()) as { uri: string };
+  console.log("Metadata uploaded:", metadataURI);
   // ─────────────────────────────────────────────────────────────────
 
   console.log("Creating task on TaskManager:", taskManagerAddr);
