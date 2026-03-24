@@ -293,7 +293,7 @@ router.get("/chain/meta", async (_req: Request, res: Response) => {
 
 router.get("/chain/task/:taskId", async (req: Request, res: Response) => {
     try {
-        const taskId = BigInt(req.params.taskId);
+        const taskId = BigInt(req.params.taskId as string);
         const onChain = await readOnChainTask(taskId);
         res.json({ source: "hedera-evm", ...onChain });
     } catch (err) {
