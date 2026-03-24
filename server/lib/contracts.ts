@@ -40,6 +40,15 @@ const VOTING_MANAGER_ABI = [
     "function setVotingDuration(uint256 _newDuration)",
     "function deleteProposal(uint256 proposalId)",
     "function resolveProposal(uint256 proposalId)",
+    // Custom errors
+    "error InvalidProposal()",
+    "error ProposalAlreadyResolved()",
+    "error VotingNotActive()",
+    "error VotingNotEnded()",
+    "error AlreadyVoted()",
+    "error NotProofManager()",
+    "error BelowMinimumStake()",
+    "error ZeroVotingPower()",
 ];
 
 const STAKING_MANAGER_ABI = [

@@ -6,6 +6,7 @@ import { addBytes, addJson } from "../../../lib/heliProof";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const videoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 router.post("/image", authRequired, upload.single("file"), async (req: Request, res: Response) => {
     try {
@@ -31,6 +32,32 @@ router.post("/image", authRequired, upload.single("file"), async (req: Request, 
     } catch (err) {
         console.error("[proof-artifacts/image] error:", err);
         res.status(500).json({ error: "Failed to add image to IPFS" });
+    }
+});
+
+router.post("/video", authRequired, videoUpload.single("file"), async (req: Request, res: Response) => {
+    try {
+        const wallet = req.user && "wallet" in req.user ? req.user.wallet?.toLowerCase() : null;
+        if (!wallet) {
+            res.status(400).json({ error: "Wallet address required" });
+            return;
+        }
+        const file = req.file;
+        if (!file || !file.buffer) {
+            res.status(400).json({ error: "No video file provided" });
+            return;
+        }
+        if (!file.mimetype.startsWith("video/")) {
+            res.status(400).json({ error: "File must be a video" });
+            return;
+        }
+        console.log(`[proof-artifacts/video] uploading ${file.size} bytes from ${wallet}`);
+        const cid = await addBytes(file.buffer);
+        console.log(`[proof-artifacts/video] cid ${cid}`);
+        res.json({ cid });
+    } catch (err) {
+        console.error("[proof-artifacts/video] error:", err);
+        res.status(500).json({ error: "Failed to add video to IPFS" });
     }
 });
 

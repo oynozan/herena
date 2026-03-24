@@ -104,6 +104,7 @@ router.get("/:id/proofs", async (req: Request, res: Response) => {
                 timestamp: p.timestamp.toISOString(),
                 resolved: p.resolved,
                 txHash: p.txHash || null,
+                resolveTxHash: p.resolveTxHash || null,
             })),
             total,
             page: pageNum,

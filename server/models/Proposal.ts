@@ -15,7 +15,9 @@ export interface IProposal {
     resolved: boolean;
     approved: boolean;
     txHash: string;
+    resolveTxHash: string;
     taskProof?: {
+        taskId: number;
         taskTitle: string;
         volunteer: string;
         proofUrl: string;
@@ -50,9 +52,11 @@ const ProposalSchema = new Schema<IProposalDocument>(
         resolved: { type: Boolean, default: false },
         approved: { type: Boolean, default: false },
         txHash: { type: String, default: "" },
+        resolveTxHash: { type: String, default: "" },
         taskProof: {
             type: new Schema(
                 {
+                    taskId: { type: Number },
                     taskTitle: { type: String },
                     volunteer: { type: String },
                     proofUrl: { type: String },

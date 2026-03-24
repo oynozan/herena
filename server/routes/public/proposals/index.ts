@@ -34,6 +34,7 @@ router.get("/", async (req: Request, res: Response) => {
                 totalVoters: p.totalVoters,
                 taskProof: p.taskProof,
                 txHash: p.txHash || null,
+                resolveTxHash: p.resolveTxHash || null,
             })),
             total,
             page: pageNum,
@@ -65,6 +66,7 @@ router.get("/:id", async (req: Request, res: Response) => {
             totalVoters: proposal.totalVoters,
             taskProof: proposal.taskProof,
             txHash: proposal.txHash || null,
+            resolveTxHash: proposal.resolveTxHash || null,
         });
     } catch (err) {
         console.error("GET /proposals/:id error:", err);

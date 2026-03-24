@@ -24,6 +24,7 @@ import SwapRecord from "../models/SwapRecord";
 const POLL_INTERVAL_MS = 10_000;
 
 let lastBlock = 0;
+let _polling = false;
 
 async function fetchMetadata(uri: string) {
     try {
@@ -195,6 +196,7 @@ async function handleProposalCreated(log: ethers.EventLog) {
                 txHash: log.transactionHash || "",
                 taskProof: proof
                     ? {
+                          taskId: proof.taskId,
                           taskTitle: task?.title || `Task #${proof.taskId}`,
                           volunteer: proof.submitter,
                           proofUrl: proof.proofURI,
@@ -212,7 +214,8 @@ async function handleProposalCreated(log: ethers.EventLog) {
 async function handleVoted(log: ethers.EventLog) {
     const [proposalId, voter, approve, votingPower] = log.args;
     try {
-        await Vote.findOneAndUpdate(
+        // Returns null if freshly inserted (upsert), returns old doc if already existed
+        const existing = await Vote.findOneAndUpdate(
             { proposalId: Number(proposalId), voter: voter.toLowerCase() },
             {
                 proposalId: Number(proposalId),
@@ -221,14 +224,16 @@ async function handleVoted(log: ethers.EventLog) {
                 votingPower: Number(votingPower),
                 timestamp: new Date(),
             },
-            { upsert: true, new: true },
+            { upsert: true },
         );
 
-        const updateField = approve
-            ? { $inc: { approveVotes: Number(votingPower), totalVoters: 1 } }
-            : { $inc: { rejectVotes: Number(votingPower), totalVoters: 1 } };
-
-        await Proposal.findOneAndUpdate({ proposalId: Number(proposalId) }, updateField);
+        // Only increment proposal totals if this is a genuinely new vote
+        if (!existing) {
+            const updateField = approve
+                ? { $inc: { approveVotes: Number(votingPower), totalVoters: 1 } }
+                : { $inc: { rejectVotes: Number(votingPower), totalVoters: 1 } };
+            await Proposal.findOneAndUpdate({ proposalId: Number(proposalId) }, updateField);
+        }
 
         // HCS audit trail
         logToHCS({ type: "voted", proposalId: Number(proposalId), voter: voter.toLowerCase(), approve, votingPower: Number(votingPower) });
@@ -252,14 +257,14 @@ async function handleProposalResolved(log: ethers.EventLog) {
         const status = approved ? "passed" : "rejected";
         const proposal = await Proposal.findOneAndUpdate(
             { proposalId: Number(id) },
-            { resolved: true, approved, status },
+            { resolved: true, approved, status, resolveTxHash: txHash },
             { new: true },
         );
 
         if (proposal) {
             const proof = await Proof.findOneAndUpdate(
                 { proofId: proposal.proofId },
-                { resolved: true },
+                { resolved: true, resolveTxHash: txHash },
                 { new: true },
             );
 
@@ -381,9 +386,24 @@ async function handleSwappedTokenForHBAR(log: ethers.EventLog) {
     }
 }
 
+async function markExpiredTasks() {
+    try {
+        const result = await Task.updateMany(
+            { status: "active", deadline: { $lte: new Date() } },
+            { status: "expired" },
+        );
+        if (result.modifiedCount > 0) {
+            console.log(`[LIFECYCLE] Marked ${result.modifiedCount} task(s) as expired`);
+        }
+    } catch (err) {
+        console.error("[LIFECYCLE] Error marking expired tasks:", err);
+    }
+}
+
 async function resolveExpiredProposals() {
     try {
         const adminVotingManager = getAdminVotingManager();
+        const votingManager = getVotingManager();
 
         const expired = await Proposal.find({
             resolved: false,
@@ -393,21 +413,58 @@ async function resolveExpiredProposals() {
 
         for (const proposal of expired) {
             try {
-                console.log(`[AUTO-RESOLVE] Resolving expired proposal #${proposal.proposalId}...`);
-                const tx = await adminVotingManager.resolveProposal(proposal.proposalId);
-                await tx.wait();
-                console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} resolved on-chain | tx=${tx.hash}`);
-            } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : String(err);
-                // Skip already-resolved proposals (contract will revert)
-                if (msg.includes("already resolved") || msg.includes("revert")) {
+                // First check on-chain state — the proposal may already be resolved
+                let onChainResolved = false;
+                let onChainApproved = false;
+                try {
+                    const onChain = await votingManager.getProposal(proposal.proposalId);
+                    onChainResolved = onChain.resolved;
+                    onChainApproved = onChain.approved;
+                } catch {
+                    // getProposal may revert for deleted proposals
+                    console.warn(`[AUTO-RESOLVE] Could not read on-chain state for proposal #${proposal.proposalId}`);
+                }
+
+                if (onChainResolved) {
+                    // Already resolved on-chain — just sync DB state
+                    const status = onChainApproved ? "passed" : "rejected";
                     await Proposal.findOneAndUpdate(
                         { proposalId: proposal.proposalId },
-                        { resolved: true, status: "expired" },
+                        { resolved: true, approved: onChainApproved, status },
                     );
-                    console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} already resolved on-chain, marked in DB`);
-                } else {
-                    console.error(`[AUTO-RESOLVE] Failed to resolve proposal #${proposal.proposalId}:`, msg);
+                    // Cascade to Proof + UserTask
+                    await cascadeProofResolution(proposal.proposalId, proposal.proofId, onChainApproved);
+                    console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} was already resolved on-chain (${status}), synced DB`);
+                    continue;
+                }
+
+                // Not resolved on-chain — attempt to resolve
+                console.log(`[AUTO-RESOLVE] Resolving expired proposal #${proposal.proposalId}...`);
+                const tx = await adminVotingManager.resolveProposal(proposal.proposalId);
+                const receipt = await tx.wait();
+                console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} resolved on-chain | tx=${tx.hash} | status=${receipt?.status}`);
+
+                // The ProposalResolved event handler will update DB state via pollEvents,
+                // but also cascade here in case the event is missed
+                await cascadeProofResolution(proposal.proposalId, proposal.proofId, null);
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.error(`[AUTO-RESOLVE] Failed to resolve proposal #${proposal.proposalId}: ${msg}`);
+
+                // Check on-chain state to see if it was actually resolved despite the error
+                try {
+                    const onChain = await votingManager.getProposal(proposal.proposalId);
+                    if (onChain.resolved) {
+                        const status = onChain.approved ? "passed" : "rejected";
+                        await Proposal.findOneAndUpdate(
+                            { proposalId: proposal.proposalId },
+                            { resolved: true, approved: onChain.approved, status },
+                        );
+                        await cascadeProofResolution(proposal.proposalId, proposal.proofId, onChain.approved);
+                        console.log(`[AUTO-RESOLVE] Proposal #${proposal.proposalId} found resolved on-chain after error (${status}), synced DB`);
+                    }
+                } catch {
+                    // ignore — will retry next cycle
                 }
             }
         }
@@ -420,7 +477,48 @@ async function resolveExpiredProposals() {
     }
 }
 
+/**
+ * Cascade resolution from a proposal to its linked Proof and UserTask documents.
+ * If `approved` is null, re-reads the Proposal from DB to determine status.
+ */
+async function cascadeProofResolution(proposalId: number, proofId: number, approved: boolean | null) {
+    try {
+        if (approved === null) {
+            const p = await Proposal.findOne({ proposalId }).lean();
+            if (!p || !p.resolved) return;
+            approved = p.approved;
+        }
+
+        const proof = await Proof.findOne({ proofId }).lean();
+        if (!proof) return;
+
+        // Update Proof
+        if (!proof.resolved) {
+            await Proof.findOneAndUpdate(
+                { proofId },
+                { resolved: true },
+            );
+        }
+
+        // Update UserTask
+        const userTaskStatus = approved ? "approved" : "rejected";
+        const task = approved ? await Task.findOne({ taskId: proof.taskId }).lean() : null;
+        const earnedRN = approved && task ? task.reward * 0.8 : 0;
+
+        await UserTask.findOneAndUpdate(
+            { user: proof.submitter, taskId: proof.taskId },
+            { status: userTaskStatus, earnedRN },
+        );
+
+        console.log(`[AUTO-RESOLVE] Cascaded resolution to proof #${proofId} | user=${proof.submitter} | status=${userTaskStatus}`);
+    } catch (err) {
+        console.error(`[AUTO-RESOLVE] Error cascading resolution for proof #${proofId}:`, err);
+    }
+}
+
 export async function pollEvents() {
+    if (_polling) return;
+    _polling = true;
     try {
         const provider = getProvider();
         const currentBlock = await provider.getBlockNumber();
@@ -493,16 +591,55 @@ export async function pollEvents() {
 
         lastBlock = currentBlock;
 
-        // Auto-resolve expired proposals
+        // Mark expired tasks and auto-resolve expired proposals
+        await markExpiredTasks();
         await resolveExpiredProposals();
     } catch (err) {
         console.error("Event polling error:", err);
+    } finally {
+        _polling = false;
     }
 }
 
 export function startEventListeners() {
     console.log("Starting blockchain event polling...");
-    pollEvents();
-    setInterval(pollEvents, POLL_INTERVAL_MS);
+    // One-time repair of vote totals corrupted by the non-idempotent $inc bug
+    repairVoteTotals().then(() => {
+        async function loop() {
+            await pollEvents();
+            setTimeout(loop, POLL_INTERVAL_MS);
+        }
+        loop();
+    });
     console.log(`Event polling active (every ${POLL_INTERVAL_MS / 1000}s)`);
+}
+
+async function repairVoteTotals() {
+    try {
+        const proposals = await Proposal.find({}).lean();
+        let repaired = 0;
+        for (const p of proposals) {
+            const votes = await Vote.find({ proposalId: p.proposalId }).lean();
+            const approveVotes = votes
+                .filter(v => v.approve)
+                .reduce((sum, v) => sum + v.votingPower, 0);
+            const rejectVotes = votes
+                .filter(v => !v.approve)
+                .reduce((sum, v) => sum + v.votingPower, 0);
+            const totalVoters = votes.length;
+
+            if (p.approveVotes !== approveVotes || p.rejectVotes !== rejectVotes || p.totalVoters !== totalVoters) {
+                await Proposal.updateOne(
+                    { proposalId: p.proposalId },
+                    { $set: { approveVotes, rejectVotes, totalVoters } },
+                );
+                repaired++;
+            }
+        }
+        if (repaired > 0) {
+            console.log(`[LIFECYCLE] Repaired vote totals for ${repaired} proposal(s)`);
+        }
+    } catch (err) {
+        console.error("[LIFECYCLE] Error repairing vote totals:", err);
+    }
 }
