@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Video from "@/lib/tiptap-video";
 import Placeholder from "@tiptap/extension-placeholder";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -11,9 +12,10 @@ import confetti from "canvas-confetti";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { submitTaskProofWithPrivy } from "@/lib/proofContract";
-import { uploadProofImage, uploadProofArtifact, triggerSync } from "@/lib/api";
+import { uploadProofImage, uploadProofVideo, uploadProofArtifact, triggerSync } from "@/lib/api";
 import {
     ImageIcon,
+    Video as VideoIcon,
     Bold,
     Italic,
     List,
@@ -35,7 +37,8 @@ const extensions = [
             alwaysPreserveAspectRatio: true,
         },
     }),
-    Placeholder.configure({ placeholder: "Write your proof and add images..." }),
+    Video,
+    Placeholder.configure({ placeholder: "Write your proof and add images or videos..." }),
 ];
 
 interface ProofComposerProps {
@@ -50,6 +53,7 @@ interface ProofComposerProps {
 
 export default function ProofComposer({ task, wallet, onSuccess }: ProofComposerProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
 
@@ -68,6 +72,10 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
         fileInputRef.current?.click();
     }, []);
 
+    const handleVideoUpload = useCallback(() => {
+        videoInputRef.current?.click();
+    }, []);
+
     const handleFileChange = useCallback(
         async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
@@ -84,6 +92,30 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
                 editor.chain().focus().setImage({ src }).run();
             } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to upload image");
+            } finally {
+                setUploading(false);
+                e.target.value = "";
+            }
+        },
+        [editor],
+    );
+
+    const handleVideoChange = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            if (!file || !file.type.startsWith("video/")) {
+                toast.error("Please select a video file");
+                return;
+            }
+            if (!editor) return;
+            setUploading(true);
+            try {
+                const { cid } = await uploadProofVideo(file);
+                const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY;
+                const src = gateway ? `${gateway.replace(/\/$/, "")}/${cid}` : `ipfs://${cid}`;
+                editor.chain().focus().setVideo({ src }).run();
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to upload video");
             } finally {
                 setUploading(false);
                 e.target.value = "";
@@ -201,6 +233,22 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
                     className="hidden"
                     onChange={handleFileChange}
                 />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleVideoUpload}
+                    disabled={uploading}
+                >
+                    <VideoIcon className="w-4 h-4" />
+                </Button>
+                <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoChange}
+                />
                 <div className="w-px bg-border mx-1" />
                 <Button
                     type="button"
@@ -224,7 +272,7 @@ export default function ProofComposer({ task, wallet, onSuccess }: ProofComposer
             <EditorContent editor={editor} />
             {uploading && (
                 <p className="text-xs text-muted-foreground px-3 py-1">
-                    Uploading image to IPFS...
+                    Uploading to IPFS...
                 </p>
             )}
             <div className="p-2 border-t border-border">

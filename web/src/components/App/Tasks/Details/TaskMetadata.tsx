@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Video from "@/lib/tiptap-video";
 
 import { resolveIpfsUrl, transformIpfsSrcs } from "@/lib/ipfs";
 
@@ -18,6 +19,7 @@ const extensions = [
             alwaysPreserveAspectRatio: true,
         },
     }),
+    Video,
 ];
 
 export default function TaskMetadata({ metadataURI }: { metadataURI: string }) {

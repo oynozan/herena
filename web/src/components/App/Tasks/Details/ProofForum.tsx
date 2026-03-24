@@ -58,6 +58,7 @@ export default function ProofForum({ taskId, refreshKey }: ProofForumProps) {
                             <th className="text-left px-4 py-2 font-medium">Date</th>
                             <th className="text-left px-4 py-2 font-medium">Status</th>
                             <th className="text-left px-4 py-2 font-medium">Tx</th>
+                            <th className="text-left px-4 py-2 font-medium">Resolve Tx</th>
                             <th className="text-right px-4 py-2 font-medium">Proof</th>
                         </tr>
                     </thead>
@@ -91,6 +92,20 @@ export default function ProofForum({ taskId, refreshKey }: ProofForumProps) {
                                                 className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-mono"
                                             >
                                                 {p.txHash.slice(0, 8)}... <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        {p.resolveTxHash ? (
+                                            <a
+                                                href={`https://hashscan.io/testnet/transaction/${p.resolveTxHash}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-mono"
+                                            >
+                                                {p.resolveTxHash.slice(0, 8)}... <ExternalLink className="w-3 h-3" />
                                             </a>
                                         ) : (
                                             <span className="text-xs text-muted-foreground">-</span>

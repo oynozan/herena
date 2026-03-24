@@ -20,6 +20,12 @@ const categoryLabels: Record<string, string> = {
     other: "Other",
 };
 
+const statusColors: Record<string, string> = {
+    completed: "bg-success/15 text-success",
+    expired: "bg-muted text-muted-foreground",
+    pending_verification: "bg-yellow-500/15 text-yellow-600",
+};
+
 export default function TaskWrapper({ task }: { task: Task }) {
     return (
         <div className="w-full">
@@ -48,6 +54,16 @@ export default function TaskWrapper({ task }: { task: Task }) {
                     </div>
                     <div className="flex-1 flex justify-end items-center gap-4 py-6 mr-4">
                         <div className="flex items-center gap-4">
+                            {task.status !== "active" && statusColors[task.status] && (
+                                <span
+                                    className={
+                                        "font-medium px-4 py-2 rounded-full text-sm capitalize " +
+                                        statusColors[task.status]
+                                    }
+                                >
+                                    {task.status}
+                                </span>
+                            )}
                             {task?.proofType && (
                                 <span className="font-medium bg-primary/15 text-primary px-4 py-2 rounded-full text-sm">
                                     {task.proofType}

@@ -46,11 +46,13 @@ export interface Proposal {
     noVotes: number;
     totalVoters: number;
     taskProof?: {
+        taskId?: number;
         taskTitle: string;
         volunteer: string;
         proofUrl: string;
     };
     txHash: string | null;
+    resolveTxHash: string | null;
 }
 
 export type ProposalType = "task_verification" | "parameter_change";
@@ -71,4 +73,5 @@ export interface TaskProof {
     timestamp: string;
     resolved: boolean;
     txHash: string | null;
+    resolveTxHash: string | null;
 }

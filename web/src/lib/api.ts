@@ -171,6 +171,21 @@ export async function uploadProofImage(file: File): Promise<{ cid: string; src: 
     return data;
 }
 
+export async function uploadProofVideo(file: File): Promise<{ cid: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetchWithWallet(`${API_URL}/proof-artifacts/video`, {
+        method: "POST",
+        credentials: "include",
+        body: form,
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Upload failed: ${res.status}`);
+    }
+    return await res.json();
+}
+
 export async function uploadProofArtifact(
     payload: { v: number; tiptap: object },
 ): Promise<{ uri: string }> {

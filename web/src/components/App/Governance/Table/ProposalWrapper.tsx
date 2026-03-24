@@ -54,6 +54,18 @@ export default function ProposalWrapper({ proposal }: { proposal: Proposal }) {
                                 <span className="text-destructive font-medium">
                                     {Math.round(proposal.noVotes)}
                                 </span>
+                                <div className="w-16 bg-border rounded-full h-1.5 overflow-hidden ml-1">
+                                    <div
+                                        className="bg-primary h-1.5 rounded-full"
+                                        style={{
+                                            width: `${
+                                                proposal.yesVotes + proposal.noVotes > 0
+                                                    ? (proposal.yesVotes / (proposal.yesVotes + proposal.noVotes)) * 100
+                                                    : 0
+                                            }%`,
+                                        }}
+                                    />
+                                </div>
                             </div>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />

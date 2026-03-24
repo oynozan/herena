@@ -9,7 +9,7 @@ export function resolveIpfsUrl(uri: string): string {
 export function transformIpfsSrcs(doc: object): object {
     const visit = (node: any): any => {
         if (!node) return node;
-        if (node.type === "image" && node.attrs?.src?.startsWith("ipfs://")) {
+        if ((node.type === "image" || node.type === "video") && node.attrs?.src?.startsWith("ipfs://")) {
             const cid = node.attrs.src.replace("ipfs://", "");
             return {
                 ...node,

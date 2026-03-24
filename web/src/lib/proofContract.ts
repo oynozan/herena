@@ -105,7 +105,7 @@ export async function submitTaskProofWithPrivy(
             abi: PROOF_MANAGER_ABI,
             functionName: "submitProof",
             args: [BigInt(params.taskId), params.proofUrl],
-            gas: 3_000_000n,
+            gas: BigInt(3_000_000),
         });
 
         console.log("[proofContract] submitTaskProof: tx hash", hash);

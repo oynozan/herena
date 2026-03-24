@@ -4,10 +4,13 @@ import { useState, useCallback, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
+import Video from "@/lib/tiptap-video";
 
 import type { Proposal } from "@/lib/types";
 import { fetchProposal } from "@/lib/api";
 import { resolveIpfsUrl, transformIpfsSrcs } from "@/lib/ipfs";
+import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import VotingPanel from "./index";
 
 const extensions = [
@@ -21,6 +24,7 @@ const extensions = [
             alwaysPreserveAspectRatio: true,
         },
     }),
+    Video,
 ];
 
 function ProofRenderer({ proofUrl }: { proofUrl: string }) {
@@ -103,7 +107,16 @@ export default function ProposalContent({ proposal: initial }: { proposal: Propo
                             <div>
                                 <p className="text-xs text-muted-foreground">Task</p>
                                 <p className="text-sm font-medium">
-                                    {proposal.taskProof.taskTitle}
+                                    {proposal.taskProof.taskId ? (
+                                        <Link
+                                            href={`/task/${proposal.taskProof.taskId}`}
+                                            className="text-primary hover:underline"
+                                        >
+                                            {proposal.taskProof.taskTitle}
+                                        </Link>
+                                    ) : (
+                                        proposal.taskProof.taskTitle
+                                    )}
                                 </p>
                             </div>
                             <div>
@@ -127,7 +140,7 @@ export default function ProposalContent({ proposal: initial }: { proposal: Propo
                 )}
                 <div>
                     <h4 className="font-semibold text-sm mb-2">Voting Progress</h4>
-                    <div className="w-full bg-border rounded-full h-3 overflow-hidden">
+                    <div className={`w-full ${proposal.noVotes === 0 ? "bg-border" : "bg-destructive"} rounded-full h-3 overflow-hidden`}>
                         <div
                             className="bg-primary h-3 rounded-full transition-all"
                             style={{ width: `${yesPercent}%` }}
@@ -143,6 +156,23 @@ export default function ProposalContent({ proposal: initial }: { proposal: Propo
                         </span>
                     </div>
                 </div>
+                {(proposal.status === "passed" || proposal.status === "rejected") && proposal.resolveTxHash && (
+                    <div>
+                        <h4 className="font-semibold text-sm mb-1">Resolution Transaction</h4>
+                        <a
+                            href={`https://hashscan.io/testnet/transaction/${proposal.resolveTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline text-sm font-mono"
+                        >
+                            {proposal.resolveTxHash.slice(0, 16)}...
+                            <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Verify reward distribution on HashScan
+                        </p>
+                    </div>
+                )}
             </div>
             <div className="w-1/3">
                 <VotingPanel proposal={proposal} onVoted={handleVoted} />
