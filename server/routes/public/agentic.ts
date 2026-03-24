@@ -303,7 +303,7 @@ router.get("/chain/task/:taskId", async (req: Request, res: Response) => {
 
 router.get("/chain/proposal/:proposalId", async (req: Request, res: Response) => {
     try {
-        const proposalId = BigInt(req.params.proposalId);
+        const proposalId = BigInt(req.params.proposalId as string);
         const onChain = await readOnChainProposal(proposalId);
         res.json({ source: "hedera-evm", ...onChain });
     } catch (err) {
@@ -313,7 +313,7 @@ router.get("/chain/proposal/:proposalId", async (req: Request, res: Response) =>
 
 router.get("/chain/proof/:proofId", async (req: Request, res: Response) => {
     try {
-        const proofId = BigInt(req.params.proofId);
+        const proofId = BigInt(req.params.proofId as string);
         const onChain = await readOnChainProof(proofId);
         res.json({ source: "hedera-evm", ...onChain });
     } catch (err) {
@@ -323,7 +323,7 @@ router.get("/chain/proof/:proofId", async (req: Request, res: Response) => {
 
 router.get("/chain/tx/:hash", async (req: Request, res: Response) => {
     try {
-        const receipt = await getTxReceipt(req.params.hash);
+        const receipt = await getTxReceipt(req.params.hash as string);
         if (!receipt) {
             res.status(404).json({ error: "Receipt not found yet" });
             return;
